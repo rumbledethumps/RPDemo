@@ -398,6 +398,218 @@ Each layer can have a fill and sprite component.  So far we have added a sprite 
 
 This will be done with ```tile_mode2.c``` and ```tile_mode2.h```.  You can added this to your CMakeLists.txt, add the header to main.c, and add ```tile_mode2_init();``` to ```init_graphics()``` just like we did with the sprite system.  In ```main.c``` we add ```tile_mode2_update_scroll();``` which will update the scroll position of the tilemaps to create a parallax scrolling effect.  The tile data is stored in XRAM and we can update it directly from our game logic just like we did with the sprites.  This allows us to create dynamic backgrounds that can change based on the player's actions or the game's state.
 
+We have a number of new assets:
+- ```images/StarFields_BG_map.bin``` - This contains the tile index for each 8x8 tile in the background layer (layer 0).  It is a 40x60 tilemap.  We can up to 256 tiles, so we need 1 byte per tile, which means this tilemap requires 2400 bytes of memory (40 tiles * 60 tiles * 1 byte per tile = 2400 bytes).  Notice that the tilemap is larger than the screen size, this allows us to scroll the background to create a parallax effect.
+- ```images/StarFields_FG_map.bin``` - This will be our foreground layer (layer 1) and it is also a 40x60 tilemap with 1 byte per tile, so it also requires 2400 bytes of memory.
+- ```images/StarFields_HUD_map.bin``` - This will be our HUD layer (layer 2) and will be a 40x30 tilemap, since we don't need to scroll it.  
+- ```images/StarFields_tiles_4bpp.bin``` - This contains the pixel data for our tiles.  Each tile is 8x8 pixels and we are using a 4bpp format, which means each pixel takes up 4 bits, so we can fit two pixels in one byte.  Therefore, each tile requires 32 bytes of memory (8 * 8 * 4 bits / 8 bits per byte = 32 bytes).  If we have a tileset with 256 tiles, this means our tileset will require 8192 bytes of memory (256 tiles * 32 bytes per tile = 8192 bytes). In this example we have 48 tiles, so our tileset requires 1536 bytes of memory (48 tiles * 32 bytes per tile = 1536 bytes).  
+
+Note, we are going to share 1 set of tiles for all 3 layers, but you can have a different tileset for each layer if you want.  We will learn how to generate tile maps later on, for now we are just learning how to use them.  The tilemaps and tileset are loaded into XRAM as assets in our CMakeLists.txt file, just like we did with the sprite.  We will then set up the tilemaps in XRAM and point the VGA system to them.  Once that is done, we can update the scroll position of the tilemaps in our main loop to create a parallax scrolling effect.
+
+Let's example the code for initializing the tilemaps in ```tile_mode2.c```:
+
+```c
+    TILE_BG_CONFIG = PLAYER_CONFIG + sizeof(vga_mode5_sprite_t); // Add after sprite config
+
+    xram0_struct_set(TILE_BG_CONFIG, vga_mode2_config_t, x_wrap, true);
+    xram0_struct_set(TILE_BG_CONFIG, vga_mode2_config_t, y_wrap, true);
+    xram0_struct_set(TILE_BG_CONFIG, vga_mode2_config_t, x_pos_px, 0);
+    xram0_struct_set(TILE_BG_CONFIG, vga_mode2_config_t, y_pos_px, 0);
+    xram0_struct_set(TILE_BG_CONFIG, vga_mode2_config_t, width_tiles,  STARFIELD_BG_WIDTH);
+    xram0_struct_set(TILE_BG_CONFIG, vga_mode2_config_t, height_tiles, STARFIELD_BG_HEIGHT);
+    xram0_struct_set(TILE_BG_CONFIG, vga_mode2_config_t, xram_data_ptr,    STARFIELD_BG_DATA); // tile ID grid
+    xram0_struct_set(TILE_BG_CONFIG, vga_mode2_config_t, xram_palette_ptr, TILE_BG_PALETTE_ADDR);
+    xram0_struct_set(TILE_BG_CONFIG, vga_mode2_config_t, xram_tile_ptr,    STARFIELD_TILES_DATA);  
+
+    // Mode 2 args: MODE, OPTIONS, CONFIG, PLANE, BEGIN, END
+    // OPTIONS: bit3=0 (8x8 tiles), bit[2:0]=2 (8-bit color index) => 0b0010 = 2
+    // Plane 0 = background fill layer (behind sprite plane 1)
+    if (xreg_vga_mode(2, 0x02, TILE_BG_CONFIG, 0, 24, 0) < 0) {
+        puts("xreg_vga_mode failed");
+        return;
+    }
+```
+
+We are setting up the tilemap configuration in XRAM.  We place the configuration for the background layer (layer 0) just after the sprite configuration in XRAM.  We set the wrapping mode for both X and Y to true, which means that when we scroll the tilemap, it will wrap around to the other side.  We set the initial position of the tilemap to (0, 0) and we specify the width and height of the tilemap in tiles.  We then point to the XRAM address where our tilemap data is stored, as well as the address of our palette and our tileset.  We then enable the tilemap layer by calling xreg_vga_mode with the appropriate parameters.  In this case, we are using Mode 2, which is the tilemap mode, and we set the options to use 8x8 tiles with an 4-bit color index (which allows for up to 16 colors in our palette).  We specify that this is plane 0, which means it will be behind the sprites on plane 1.  We also specify the begin and end scanlines for this layer, in this case we are excluding the top 24 scanlines to leave room for our HUD layer.
+
+We repeat this process for the foreground layer (layer 1) and the HUD layer (layer 2), making sure to use different XRAM addresses for each layer's configuration. 
+
+Next we update ```constants.h``` to include the new assets and the XRAM layout for the tilemaps:
+
+```c
+#ifndef CONSTANTS_H
+#define CONSTANTS_H
+
+// Screen dimensions
+#define SCREEN_WIDTH 320
+#define SCREEN_HEIGHT 240
+
+// Sprite data configuration
+#define SPRITE_DATA_START       0x0000U            // Starting address in XRAM for sprite data
+
+#define PLAYER_DATA            (SPRITE_DATA_START) // Address for main tile bitmap data
+#define PLAYER_DATA_SIZE        0x0080U            // 128 bytes (16x16 at 4bpp)
+#define PLAYER_SPRITE_SIZE_PX   16                 // Player sprite is 16x16 pixels
+
+#define STARFIELD_BG_DATA      (PLAYER_DATA + PLAYER_DATA_SIZE) // Address for starfield background tilemap
+#define STARFIELD_BG_SIZE       0x0960U            // 2400 bytes (40x60 tilemap)
+#define STARFIELD_BG_WIDTH      40                 // Width of starfield background in tiles
+#define STARFIELD_BG_HEIGHT     60                 // Height of starfield background in tiles
+
+#define STARFIELD_FG_DATA      (STARFIELD_BG_DATA + STARFIELD_BG_SIZE) // Address for starfield foreground tilemap
+#define STARFIELD_FG_SIZE       0x0960U            // 2400 bytes (40x60 tilemap)
+#define STARFIELD_FG_WIDTH      40                 // Width of starfield foreground in tiles
+#define STARFIELD_FG_HEIGHT     60                 // Height of starfield foreground in tiles
+
+#define STARFIELD_HUD_DATA     (STARFIELD_FG_DATA + STARFIELD_FG_SIZE) // Address for starfield HUD tilemap
+#define STARFIELD_HUD_SIZE      0x04B0U            // 1200 bytes (40x30 tilemap)
+#define STARFIELD_HUD_WIDTH     40                 // Width of starfield HUD in tiles
+#define STARFIELD_HUD_HEIGHT    30                 // Height of starfield HUD in tiles
+
+#define STARFIELD_TILES_DATA   (STARFIELD_HUD_DATA + STARFIELD_HUD_SIZE) // Address for starfield tile bitmaps
+#define STARFIELD_TILES_SIZE    0x0600U            // 1536 bytes (48 tiles at 32 bytes each for 4bpp)
+
+
+#define SPRITE_DATA_END        (STARFIELD_TILES_DATA + STARFIELD_TILES_SIZE) // End of sprite data
+
+
+// Palette configurations
+#define PLAYER_PALETTE_ADDR    0xFC00  // 16-color palette (32 bytes, 0xFC00-0xFC1F)
+#define PLAYER_PALETTE_SIZE    0x0020
+#define TILE_BG_PALETTE_ADDR   0xFC20  // 16-color palette for tile background (32 bytes, 0xFC20-0xFC3F)
+#define TILE_BG_PALETTE_SIZE   0x0020
+#define TILE_FG_PALETTE_ADDR   0xFC40  // 16-color palette for tile foreground (32 bytes, 0xFC40-0xFC5F)
+#define TILE_FG_PALETTE_SIZE   0x0020
+#define TILE_HUD_PALETTE_ADDR  0xFC60  // 16-color palette for tile HUD (32 bytes, 0xFC60-0xFC7F)
+#define TILE_HUD_PALETTE_SIZE  0x0020
+
+// RIA input buffers are provided at fixed XRAM addresses.
+#define GAMEPAD_INPUT   0xFF78  // 40 bytes for 4 gamepads
+#define KEYBOARD_INPUT  0xFFA0  // 32 bytes keyboard bitfield
+
+// Configs 
+extern unsigned PLAYER_CONFIG; // Address in XRAM where player sprite config is stored, for updates
+extern unsigned TILE_BG_CONFIG; // Address in XRAM where tile background config is stored, for updates
+extern unsigned TILE_FG_CONFIG; // Address in XRAM where tile foreground config is stored, for updates
+extern unsigned TILE_HUD_CONFIG; // Address in XRAM where tile HUD config is stored, for updates
+
+#endif // CONSTANTS_H
+```
+
+Notice how we have defined the XRAM layout for all of our assets, including the sprite data, tilemap data, and palette data.  This allows us to easily keep track of where everything is in memory and avoid any conflicts.  We have also defined some constants for the screen dimensions and the size of our sprite and tilemaps.  Again, use the spreadsheet to keep track of your XRAM layout and do the hex math for you.  This will help you avoid mistakes and make it easier to manage your assets as your game grows in complexity.  Next we update CMakeLists.txt to include the new source files:
+
+```cmake
+rp6502_asset(RPStarHopper 0x10000 images/Player_4bpp.bin)
+rp6502_asset(RPStarHopper 0x10080 images/StarFields_BG_map.bin)
+rp6502_asset(RPStarHopper 0x109E0 images/StarFields_FG_map.bin)
+rp6502_asset(RPStarHopper 0x11340 images/StarFields_HUD_map.bin)
+rp6502_asset(RPStarHopper 0x117F0 images/StarFields_tiles_4bpp.bin)
+```
+
+With the assets in place let's update main.c to initialize the tilemaps and update the scroll position in the main loop. Add ```tile_mode2_init();``` to ```init_graphics()``` and add ```tile_mode2_update_scroll();``` to the main loop:
+
+```c
+int main(void)
+{
+
+    // Initialize input
+    xregn(0, 0, 0, 1, KEYBOARD_INPUT);
+    xregn(0, 0, 2, 1, GAMEPAD_INPUT);
+
+    // Initialise graphics
+    if (!init_graphics()) {
+        puts("Fatal: graphics initialization failed");
+        return 1;
+    }
+    init_input_system();
+    player_controller_init();
+
+    // Main loop
+    while (true) {
+        // 1. SYNC
+        if (RIA.vsync == vsync_last) continue;
+        vsync_last = RIA.vsync;
+
+        // 2. INPUT
+        handle_input();
+
+        // 3. UPDATE
+        tile_mode2_update_scroll();
+        player_controller_update();
+    }
+
+    return 0;
+}
+```
+
+Every VSYNC we call ```tile_mode2_update_scroll();``` which will update the scroll position of the tilemaps to create a parallax scrolling effect.  The background layer will scroll slower than the foreground layer, which creates a sense of depth and movement in the scene.  You can customize the scrolling logic in ```tile_mode2_update_scroll()``` to create different scrolling patterns or to scroll based on player movement or other game events.  With the tilemaps set up and scrolling, you should now see a starfield background with a faster scrolling foreground layer, and a HUD layer at the top of the screen. 
+
+## Music
+
+The Picocomputer has a built in OPL2 compatible sound chip which is very powerful and can create a wide range of sounds and music.  You can use the OPL2 to create music for your game, and you can also use it to create sound effects.  We are going to use VGM music files for our game, which is a common format for chiptune music.  You can find a large library of VGM music files online, or you can create your own using a tracker software like Furnace.   The VGM is streamed from the disk, so you can have long music tracks without taking up valuable XRAM space. 
+
+The key files are ```music.c```, ```opl.c```, ```vgm.c``` and their corresponding header files.  You can add these to your CMakeLists.txt and include the headers in main.c.  The music system will read the VGM file from the disk and stream the OPL commands to the sound chip in real time.   Our asset for this game is called 'RESOURCE.00.vgm'.   
+
+We add the following to ```constants.h```
+```c
+#define OPL_XRAM_ADDR   0xFE00  // Native RIA OPL2 register page
+#define OPL_SIZE        0x0100
+```
+This place in XRAM will contain all the OPL2 registers.  In ```main.c``` we simply need to add ```init_input_system();```
+and ```music_update();``` to play our music track, so our main loop will look like this:
+
+```c
+int main(void)
+{
+
+    // Initialize input
+    xregn(0, 0, 0, 1, KEYBOARD_INPUT);
+    xregn(0, 0, 2, 1, GAMEPAD_INPUT);
+
+    // Initialise graphics
+    if (!init_graphics()) {
+        puts("Fatal: graphics initialization failed");
+        return 1;
+    }
+    music_init();
+    init_input_system();
+    player_controller_init();
+
+    // Main loop
+    while (true) {
+        // 1. SYNC
+        if (RIA.vsync == vsync_last) continue;
+        vsync_last = RIA.vsync;
+
+        // 2. INPUT
+        handle_input();
+
+        // 3. UPDATE
+        music_update();
+        tile_mode2_update_scroll();
+        player_controller_update();
+    }
+
+    return 0;
+}
+```
+
+Note that the player only supports VGM files that use OPL2 commands.  The player does not support VGZ.  Note, that VGZ is just gzipped VGM, so you can easily convert a VGZ file to VGM by unzipping it.
+
+After including 
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

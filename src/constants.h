@@ -44,6 +44,10 @@
 #define TILE_HUD_PALETTE_ADDR  0xFC60  // 16-color palette for tile HUD (32 bytes, 0xFC60-0xFC7F)
 #define TILE_HUD_PALETTE_SIZE  0x0020
 
+// OPL2 sound chip configuration
+#define OPL_XRAM_ADDR   0xFE00  // Native RIA OPL2 register page
+#define OPL_SIZE        0x0100
+
 // RIA input buffers are provided at fixed XRAM addresses.
 #define GAMEPAD_INPUT   0xFF78  // 40 bytes for 4 gamepads
 #define KEYBOARD_INPUT  0xFFA0  // 32 bytes keyboard bitfield

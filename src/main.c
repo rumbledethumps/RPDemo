@@ -6,6 +6,7 @@
 #include "tile_mode2.h"
 #include "input.h"
 #include "player_controller.h"
+#include "music.h"
 
 
 
@@ -31,14 +32,15 @@ int main(void)
 {
 
     // Initialize input
-    xreg(0, 0, 0, KEYBOARD_INPUT);
-    xreg(0, 0, 2, GAMEPAD_INPUT);
+    xregn(0, 0, 0, 1, KEYBOARD_INPUT);
+    xregn(0, 0, 2, 1, GAMEPAD_INPUT);
 
     // Initialise graphics
     if (!init_graphics()) {
         puts("Fatal: graphics initialization failed");
         return 1;
     }
+    music_init();
     init_input_system();
     player_controller_init();
 
@@ -52,6 +54,7 @@ int main(void)
         handle_input();
 
         // 3. UPDATE
+        music_update();
         tile_mode2_update_scroll();
         player_controller_update();
     }
