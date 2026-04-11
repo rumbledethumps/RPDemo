@@ -1,68 +1,88 @@
-# RP6502 VSCode Scaffolding for LLVM-MOS
+# RP6502 Game Demo for LLVM-MOS
 
-This is scaffolding for a new Picocomputer 6502 software project.
+Get started by using the vscode-llvm-mos template from https://github.com/picocomputer/vscode-llvm-mos.  Find the "Use this template" button and follow the instructions to create a new repository.  
 
-### LLVM PATH notes
+Once you have your respository set up, we are going to update CMakeLists.txt to build the demo game.  Update the contents of CMakeLists.txt to have the name of the game you want to make.  In this example, we are going to make a game called RPDemo.  The CMakeLists.txt file should look something like this:
 
-LLVM-MOS must be in your PATH. However, this may conflict with other LLVM
-installations, like the one that comes with your operating system.
-In that case, you can adjust the path for only CMake with a VSCode setting.
-Add a file `.vscode/settings.json` with the following contents. Adjust the
-path for where you installed LLVM-MOS.
+```cmake
+cmake_minimum_required(VERSION 3.18)
+
+add_subdirectory(tools)
+
+set(LLVM_MOS_PLATFORM rp6502)
+find_package(llvm-mos-sdk REQUIRED)
+
+project(RPDemo C CXX ASM)
+
+add_executable(RPDemo)
+
+rp6502_asset(RPDemo help src/help.txt)
+
+rp6502_executable(RPDemo 
+    DATA file 
+    RESET file
+)
+
+target_sources(RPDemo PRIVATE
+    src/main.c
+)
 ```
+
+At this point, you should be able to build the project in VScode with the build button and run it on your Picocomputer via F5 or the run button.  You can also run it from the command line with the following command:
+```
+python3 ./tools/rp6502.py run build/RPDemo.rp6502
+```
+[Note: If you are on a Mac, you can use rp6502_mac.py found in the tools directory of this repository.]
+
+## Setting up Graphics
+
+The documentation for the Picocomputer is excellent:
+https://picocomputer.github.io
+
+For this demo we are going to work with a 320x240 canvas.   Let's start by initializing the graphics system.  We can do this by calling the xreg_vga_canvas function with a parameter of 1.  Add the following to your main.c file, as well as ```#include <stdbool.h>``` at the top of the file:
+
+
+```c
+static bool init_graphics(void)
 {
-    "cmake.environment": {
-        "PATH": "~/llvm-mos/bin:${env:PATH}"
+    // 320×240 canvas
+    int rc;
+    rc = xreg_vga_canvas(1);
+    if (rc < 0) {
+        puts("Error: xreg_vga_canvas(1) failed");
+        return false;
     }
+    return true;
 }
 ```
 
-### Linux Tools Install:
- * [VSCode](https://code.visualstudio.com/). This has its own installer.
- * An install of [LLVM-MOS](https://llvm-mos.org/wiki/Welcome).
-   See PATH notes above.
- * The following tools installed from your package manager:
-    * `sudo apt install cmake python3 git build-essential`
+and then we will call this function from our main, and also set up a vsync loop to keep the program running.  Update your main function to look like this:
 
-### Windows Tools Install:
- * `winget install -e --id Microsoft.VisualStudioCode`
- * `winget install -e --id Git.Git`
- * `winget install -e --id Kitware.CMake`
- * `winget install -e --id GnuWin32.Make`.
-    Add "C:\Program Files (x86)\GnuWin32\bin" to your path.
- * An install of [LLVM-MOS](https://llvm-mos.org/wiki/Welcome).
-   See PATH notes above.
- * Install python by typing `python3` which will launch the Microsoft Store
-   where you start the install. If python runs, this has already been done,
-   exit python with Ctrl-Z plus Return.
+```c
 
-### Getting Started:
-Go to the [GitHub template](https://github.com/picocomputer/vscode-llvm-mos)
-and select "Use this template" then "Create a new repository". GitHub will
-make a clean project for you to start with. Then you can download the
-repository and open the files.
+uint8_t vsync_last = 0;
 
-```
-$ git clone [path_to_github]
-$ cd [to_where_it_cloned]
-$ code .
+int main(void)
+{
+    if (!init_graphics()) {
+        puts("Fatal: graphics initialization failed");
+        return 1;
+    }
+
+    // Main loop
+    while (true) {
+        // 1. SYNC
+        if (RIA.vsync == vsync_last) continue;
+        vsync_last = RIA.vsync;
+    }
+
+    return 0;
+}
 ```
 
-Install the recommended extensions when VS Code prompts you, choosing the
-default or obvious choice for any other prompts. The tools we use in VS Code
-are constantly improving and changing making it too difficult to maintain
-documentation. Choose "[Unspecified]" for the CMake kit.
+If you build and run this code, you should see a blank screen on your Picocomputer.  This means that we have successfully initialized the graphics system and are running a main loop that is synced to the vertical refresh of the display.  In the next section, we will start drawing some pixels to the screen!  To exit the program hit "CTRL + ALT + DEL" on the keyboard connected to your Picocomputer.
 
-"Start Debugging" (F5) will build your project and run it on a Picocomputer.
-Connect with a USB cable plugged into the RP6502-VGA USB port.
+## Adding a Sprite
 
-If you get a Python error about the communications device not being found,
-edit `.rp6502` in the project root. This file will be created the first time
-you "Start Debugging" and will be ignored by git.
 
-Once the program is running, a debug console becomes available on the terminal
-tab. It will say "Python Debug Console" because the rp6502.py tool is Python.
-Ctrl-A then X will exit. Ctrl-A then B will send a break.
 
-Edit `CMakeLists.txt` to add new source and asset files. From here on, it's
-standard C/assembly development for the 6502 platform.
