@@ -9,6 +9,7 @@ project(RPDemo C CXX ASM)
 
 add_executable(RPDemo)
 
+rp6502_asset(RPDemo 0x10000 images/Player_4bpp.bin)
 rp6502_asset(RPDemo help src/help.txt)
 
 rp6502_executable(RPDemo 
@@ -18,4 +19,5 @@ rp6502_executable(RPDemo
 
 target_sources(RPDemo PRIVATE
     src/main.c
+    src/sprite_mode5.c
 )

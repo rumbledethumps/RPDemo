@@ -1,6 +1,9 @@
 #include <rp6502.h>
 #include <stdio.h>
 #include <stdbool.h>
+#include "constants.h"
+#include "sprite_mode5.h"
+
 
 
 static bool init_graphics(void)
@@ -12,6 +15,9 @@ static bool init_graphics(void)
         puts("Error: xreg_vga_canvas(1) failed");
         return false;
     }
+
+    sprite_mode5_init();
+
     return true;
 }
 
