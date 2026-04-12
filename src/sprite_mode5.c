@@ -7,6 +7,27 @@
 // Store the player config address for updates
 unsigned PLAYER_CONFIG;
 
+static uint8_t player_frame = 0;
+static uint8_t engine_phase = 0;
+static uint8_t engine_tick = 0;
+
+#define PLAYER_ENGINE_PALETTE_INDEX 12
+#define ENGINE_ANIM_TICK_FRAMES 4
+
+static const uint16_t engine_colors[3] = {
+    0x52BF,
+    0x57FF,
+    0xFFFF,
+};
+
+static void sprite_mode5_write_palette_entry(uint8_t index, uint16_t color)
+{
+    RIA.addr0 = (unsigned)(PLAYER_PALETTE_ADDR + ((unsigned)index * 2u));
+    RIA.step0 = 1;
+    RIA.rw0 = color & 0xFF;
+    RIA.rw0 = color >> 8;
+}
+
 void sprite_mode5_init(void) {
     int rc;
     int16_t center_x = (int16_t)((SCREEN_WIDTH - PLAYER_SPRITE_SIZE_PX) / 2);
@@ -18,6 +39,7 @@ void sprite_mode5_init(void) {
     xram0_struct_set(PLAYER_CONFIG, vga_mode5_sprite_t, y_pos_px, center_y);
     xram0_struct_set(PLAYER_CONFIG, vga_mode5_sprite_t, xram_sprite_ptr, PLAYER_DATA);
     xram0_struct_set(PLAYER_CONFIG, vga_mode5_sprite_t, palette_ptr, PLAYER_PALETTE_ADDR);
+    player_frame = 0;
 
 
     // Mode 5 args: MODE, OPTIONS, CONFIG, LENGTH, PLANE, BEGIN, END
@@ -33,6 +55,8 @@ void sprite_mode5_init(void) {
         RIA.rw0 = player_palette[i] & 0xFF;
         RIA.rw0 = player_palette[i] >> 8;
     }
+
+    sprite_mode5_write_palette_entry(PLAYER_ENGINE_PALETTE_INDEX, 0x0000);
 
 
     puts("Mode5 player sprite ready");
@@ -59,4 +83,38 @@ void sprite_mode5_set_position(int16_t x, int16_t y)
     // Update sprite position in XRAM
     xram0_struct_set(PLAYER_CONFIG, vga_mode5_sprite_t, x_pos_px, x);
     xram0_struct_set(PLAYER_CONFIG, vga_mode5_sprite_t, y_pos_px, y);
+}
+
+void sprite_mode5_set_frame(uint8_t frame_index)
+{
+    if (frame_index >= PLAYER_FRAME_COUNT) {
+        frame_index = 0;
+    }
+    if (frame_index == player_frame) {
+        return;
+    }
+
+    player_frame = frame_index;
+    xram0_struct_set(
+        PLAYER_CONFIG,
+        vga_mode5_sprite_t,
+        xram_sprite_ptr,
+        (PLAYER_DATA + ((unsigned)frame_index * PLAYER_FRAME_SIZE))
+    );
+}
+
+void sprite_mode5_update_engine(bool moving_down)
+{
+    if (moving_down) {
+        engine_tick = 0;
+        sprite_mode5_write_palette_entry(PLAYER_ENGINE_PALETTE_INDEX, 0x0000);
+        return;
+    }
+
+    if (engine_tick == 0) {
+        sprite_mode5_write_palette_entry(PLAYER_ENGINE_PALETTE_INDEX, engine_colors[engine_phase]);
+        engine_phase = (uint8_t)((engine_phase + 1) % 3);
+    }
+
+    engine_tick = (uint8_t)((engine_tick + 1) % ENGINE_ANIM_TICK_FRAMES);
 }

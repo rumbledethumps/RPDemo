@@ -58,12 +58,27 @@ void player_controller_update(void)
     prev_speed_down = speed_down_now;
     prev_speed_up = speed_up_now;
 
+    bool moving_up = is_action_pressed(0, ACTION_MOVE_UP);
+    bool moving_down = is_action_pressed(0, ACTION_MOVE_DOWN);
+    bool moving_left = is_action_pressed(0, ACTION_MOVE_LEFT);
+    bool moving_right = is_action_pressed(0, ACTION_MOVE_RIGHT);
+
     int32_t speed_q8 = SPEED_TO_Q8(player_speed);
 
-    if (is_action_pressed(0, ACTION_MOVE_UP))    player_y_q8 -= speed_q8;
-    if (is_action_pressed(0, ACTION_MOVE_DOWN))  player_y_q8 += speed_q8;
-    if (is_action_pressed(0, ACTION_MOVE_LEFT))  player_x_q8 -= speed_q8;
-    if (is_action_pressed(0, ACTION_MOVE_RIGHT)) player_x_q8 += speed_q8;
+    if (moving_up)    player_y_q8 -= speed_q8;
+    if (moving_down)  player_y_q8 += speed_q8;
+    if (moving_left)  player_x_q8 -= speed_q8;
+    if (moving_right) player_x_q8 += speed_q8;
+
+    sprite_mode5_update_engine(moving_down);
+
+    if (moving_left && !moving_right) {
+        sprite_mode5_set_frame(2);
+    } else if (moving_right && !moving_left) {
+        sprite_mode5_set_frame(1);
+    } else {
+        sprite_mode5_set_frame(0);
+    }
 
     int32_t max_x_q8 = ((int32_t)(SCREEN_WIDTH  - PLAYER_SPRITE_SIZE_PX)) << Q8_SHIFT;
     int32_t max_y_q8 = ((int32_t)(SCREEN_HEIGHT - PLAYER_SPRITE_SIZE_PX)) << Q8_SHIFT;

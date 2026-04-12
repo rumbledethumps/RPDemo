@@ -1,6 +1,8 @@
 #ifndef SPRITE_MODE5_H
 #define SPRITE_MODE5_H
 
+#include <stdbool.h>
+
 typedef struct {
     int16_t x_pos_px;
     int16_t y_pos_px;
@@ -22,7 +24,7 @@ static const uint16_t player_palette[16] = {
     0xFAAA,
     0x57EA,
     0xFFEA,
-    0x52BF,
+    0x52BF, // index 12 -- engine glow
     0xFABF,
     0x57FF,
     0xFFFF,
@@ -30,5 +32,7 @@ static const uint16_t player_palette[16] = {
 
 void sprite_mode5_init(void);
 void sprite_mode5_set_position(int16_t x, int16_t y);
+void sprite_mode5_set_frame(uint8_t frame_index);
+void sprite_mode5_update_engine(bool moving_down);
 
 #endif // SPRITE_MODE5_H

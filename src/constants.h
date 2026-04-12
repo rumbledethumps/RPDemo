@@ -9,8 +9,10 @@
 #define SPRITE_DATA_START       0x0000U            // Starting address in XRAM for sprite data
 
 #define PLAYER_DATA            (SPRITE_DATA_START) // Address for main tile bitmap data
-#define PLAYER_DATA_SIZE        0x0080U            // 128 bytes (16x16 at 4bpp)
+#define PLAYER_DATA_SIZE        0x0180U            // 384 bytes (3 frames 16x16 at 4bpp)
 #define PLAYER_SPRITE_SIZE_PX   16                 // Player sprite is 16x16 pixels
+#define PLAYER_FRAME_SIZE       0x0080U            // 128 bytes per 16x16 4bpp frame
+#define PLAYER_FRAME_COUNT      3                  // idle, left, right
 
 #define STARFIELD_BG_DATA      (PLAYER_DATA + PLAYER_DATA_SIZE) // Address for starfield background tilemap
 #define STARFIELD_BG_SIZE       0x0960U            // 2400 bytes (40x60 tilemap)

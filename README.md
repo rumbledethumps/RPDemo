@@ -521,8 +521,10 @@ Next we update ```constants.h``` to include the new assets and the XRAM layout f
 #define SPRITE_DATA_START       0x0000U            // Starting address in XRAM for sprite data
 
 #define PLAYER_DATA            (SPRITE_DATA_START) // Address for main tile bitmap data
-#define PLAYER_DATA_SIZE        0x0080U            // 128 bytes (16x16 at 4bpp)
+#define PLAYER_DATA_SIZE        0x0180U            // 384 bytes (3 frames 16x16 at 4bpp)
 #define PLAYER_SPRITE_SIZE_PX   16                 // Player sprite is 16x16 pixels
+#define PLAYER_FRAME_SIZE       0x0080U            // 128 bytes per 16x16 4bpp frame
+#define PLAYER_FRAME_COUNT      3                  // idle, left, right
 
 #define STARFIELD_BG_DATA      (PLAYER_DATA + PLAYER_DATA_SIZE) // Address for starfield background tilemap
 #define STARFIELD_BG_SIZE       0x0960U            // 2400 bytes (40x60 tilemap)
@@ -569,27 +571,25 @@ extern unsigned TILE_HUD_CONFIG; // Address in XRAM where tile HUD config is sto
 #endif // CONSTANTS_H
 ```
 
-Notice how we have defined the XRAM layout for all of our assets, including the sprite data, tilemap data, and palette data.  This allows us to easily keep track of where everything is in memory and avoid any conflicts.  We have also defined some constants for the screen dimensions and the size of our sprite and tilemaps.  Again, use the spreadsheet to keep track of your XRAM layout and do the hex math for you.  This will help you avoid mistakes and make it easier to manage your assets as your game grows in complexity.  Next we update CMakeLists.txt to include the new source files:
+Notice how we have defined the XRAM layout for all of our assets, including the sprite data, tilemap data, and palette data.  This allows us to easily keep track of where everything is in memory and avoid any conflicts.  You may notice that our player sprite is actual 3 frames of animation (idle, left, right) which is why we have allocated 384 bytes for the player sprite data (3 frames * 128 bytes per frame = 384 bytes).  We will show how to update the sprite data in XRAM to animate the player in a later section.  We have also defined some constants for the screen dimensions and the size of our sprite and tilemaps.  
+
+Use the spreadsheet to keep track of your XRAM layout and do the hex math for you.  This will help you avoid mistakes and make it easier to manage your assets as your game grows in complexity.  Next we update CMakeLists.txt based on the output of the spreadsheet to include the new source files:
 
 ```cmake
 rp6502_asset(RPStarHopper 0x10000 images/Player_4bpp.bin)
-rp6502_asset(RPStarHopper 0x10080 images/StarFields_BG_map.bin)
-rp6502_asset(RPStarHopper 0x109E0 images/StarFields_FG_map.bin)
-rp6502_asset(RPStarHopper 0x11340 images/StarFields_HUD_map.bin)
-rp6502_asset(RPStarHopper 0x117F0 images/StarFields_tiles_4bpp.bin)
+rp6502_asset(RPStarHopper 0x10180 images/StarFields_BG_map.bin)
+rp6502_asset(RPStarHopper 0x10AE0 images/StarFields_FG_map.bin)
+rp6502_asset(RPStarHopper 0x11440 images/StarFields_HUD_map.bin)
+rp6502_asset(RPStarHopper 0x118F0 images/StarFields_tiles_4bpp.bin)
 ```
 
-With the assets in place let's update main.c to initialize the tilemaps and update the scroll position in the main loop. Add ```tile_mode2_init();``` to ```init_graphics()``` and add ```tile_mode2_update_scroll();``` to the main loop:
-
-
-
-Every VSYNC we call ```tile_mode2_update_scroll();``` which will update the scroll position of the tilemaps to create a parallax scrolling effect.  The background layer will scroll slower than the foreground layer, which creates a sense of depth and movement in the scene.  You can customize the scrolling logic in ```tile_mode2_update_scroll()``` to create different scrolling patterns or to scroll based on player movement or other game events.  With the tilemaps set up and scrolling, you should now see a starfield background with a faster scrolling foreground layer, and a HUD layer at the top of the screen. 
+If we look back at our main loop, we are calling ```tile_mode2_update_scroll();``` every frame.  This function will update the scroll position of the tilemaps to create a parallax scrolling effect.  The background layer will scroll slower than the foreground layer, which creates a sense of depth and movement in the scene.  You can customize the scrolling logic in ```tile_mode2_update_scroll()``` to create different scrolling patterns or to scroll based on player movement or other game events.  With the tilemaps set up and scrolling, you should now see a starfield background with a faster scrolling foreground layer, and a HUD layer at the top of the screen. 
 
 ![Scrolling background](Screenshots/Screenshot_002.png)
 
 ## Music
 
-The Picocomputer has a built in OPL2 compatible sound chip which is very powerful and can create a wide range of sounds and music.  You can use the OPL2 to create music for your game, and you can also use it to create sound effects.  We are going to use VGM music files for our game, which is a common format for chiptune music.  You can find a large library of VGM music files online, or you can create your own using a tracker software like Furnace.   The VGM is streamed from the disk, so you can have long music tracks without taking up valuable XRAM space. 
+The Picocomputer has a built in OPL2 emulator which is very powerful and can create a wide range of sounds and music.  You can use the OPL2 to create music for your game, and you can also use it to create sound effects.  We are going to use VGM music files for our game, which is a common format for chiptune music.  You can find a large library of VGM music files online, or you can create your own using a tracker software like Furnace.   The VGM is streamed from the disk, so you can have long music tracks without taking up valuable XRAM space. 
 
 The key files are ```music.c```, ```opl.c```, ```vgm.c``` and their corresponding header files.  You can add these to your CMakeLists.txt and include the headers in main.c.  The music system will read the VGM file from the disk and stream the OPL commands to the sound chip in real time.   Our asset for this game is called 'RESOURCE.00.vgm'.   
 
@@ -639,9 +639,234 @@ int main(void)
 
 Note that the player only supports VGM files that use OPL2 commands.  The player does not support VGZ.  Note, that VGZ is just gzipped VGM, so you can easily convert a VGZ file to VGM by unzipping it.
 
-After including 
+## Animations and Palette Swapping
+
+We can now add frame-based animation to our player sprite by updating the sprite data in XRAM.  We can also create palette swapping effects by updating the palette data in XRAM.  This allows us to create a wide range of visual effects without needing to make expensive system calls, as we are directly manipulating the data in XRAM that the VGA system is using to render the sprites and tiles. This is the main reason for using Mode-5 for our sprites.  It saves XRAM and provides very fast updates for animations and palette swaps.
+
+If you look at ```Player_4bpp.bin``` you will see that it contains 3 frames of animation for the player sprite: an idle frame, a left movement frame, and a right movement frame.  Each frame is 128 bytes (16x16 pixels at 4bpp), so the total size of the sprite data is 384 bytes.  We can update the sprite's current frame by changing the XRAM address that the VGA system is using to fetch the sprite data.  This allows us to create animations by simply updating the frame index in XRAM. 
+
+We can also create palette swapping effects by updating the palette data in XRAM.  For example, we could change the player's colors when they take damage or pick up a power-up by updating the palette entries in XRAM.  This allows us to create dynamic visual effects without needing to change the sprite data itself, which can save memory and allow for more complex animations.  
+
+In this example, we will change palettes to show when he player is moving up, down, left or right.  This will give the player some visual feedback on their movement and make the game feel more responsive.
 
 
+```c
+void player_controller_update(void)
+{
+    // Tap LT to decrease speed by 1, tap RT to increase speed by 1.
+    bool speed_down_now = is_action_pressed(0, ACTION_BTN_LT);
+    bool speed_up_now = is_action_pressed(0, ACTION_BTN_RT);
+
+    if (speed_down_now && !prev_speed_down) {
+        player_controller_set_speed(player_speed - 1);
+    }
+    if (speed_up_now && !prev_speed_up) {
+        player_controller_set_speed(player_speed + 1);
+    }
+    prev_speed_down = speed_down_now;
+    prev_speed_up = speed_up_now;
+
+    bool moving_up = is_action_pressed(0, ACTION_MOVE_UP);
+    bool moving_down = is_action_pressed(0, ACTION_MOVE_DOWN);
+    bool moving_left = is_action_pressed(0, ACTION_MOVE_LEFT);
+    bool moving_right = is_action_pressed(0, ACTION_MOVE_RIGHT);
+
+    int32_t speed_q8 = SPEED_TO_Q8(player_speed);
+
+    if (moving_up)    player_y_q8 -= speed_q8;
+    if (moving_down)  player_y_q8 += speed_q8;
+    if (moving_left)  player_x_q8 -= speed_q8;
+    if (moving_right) player_x_q8 += speed_q8;
+
+    sprite_mode5_update_engine(moving_down);
+
+    if (moving_left && !moving_right) {
+        sprite_mode5_set_frame(2);
+    } else if (moving_right && !moving_left) {
+        sprite_mode5_set_frame(1);
+    } else {
+        sprite_mode5_set_frame(0);
+    }
+
+    int32_t max_x_q8 = ((int32_t)(SCREEN_WIDTH  - PLAYER_SPRITE_SIZE_PX)) << Q8_SHIFT;
+    int32_t max_y_q8 = ((int32_t)(SCREEN_HEIGHT - PLAYER_SPRITE_SIZE_PX)) << Q8_SHIFT;
+
+    if (player_x_q8 < 0)         player_x_q8 = 0;
+    if (player_x_q8 > max_x_q8) player_x_q8 = max_x_q8;
+    if (player_y_q8 < 0)         player_y_q8 = 0;
+    if (player_y_q8 > max_y_q8) player_y_q8 = max_y_q8;
+
+    sprite_mode5_set_position((int16_t)(player_x_q8 >> Q8_SHIFT), (int16_t)(player_y_q8 >> Q8_SHIFT));
+}
+```
+
+We then use the boolan flags for movement to determine which frame of the sprite to show.  If the player is moving left, we show the left movement frame, if they are moving right we show the right movement frame, and if they are not moving left or right we show the idle frame.  This allows us to create a simple animation for the player sprite based on their movement.  You can expand on this logic to create more complex animations or to change the palette based on different conditions.  Here is our updated ```sprite_mode5.c``` file with the animation and palette swapping logic added:
+
+```c
+#include <rp6502.h>
+#include <stdio.h>
+#include <stdint.h>
+#include "constants.h"
+#include "sprite_mode5.h"
+
+// Store the player config address for updates
+unsigned PLAYER_CONFIG;
+
+static uint8_t player_frame = 0;
+static uint8_t engine_phase = 0;
+static uint8_t engine_tick = 0;
+
+#define PLAYER_ENGINE_PALETTE_INDEX 12
+#define ENGINE_ANIM_TICK_FRAMES 4
+
+static const uint16_t engine_colors[3] = {
+    0x52BF,
+    0x57FF,
+    0xFFFF,
+};
+
+static void sprite_mode5_write_palette_entry(uint8_t index, uint16_t color)
+{
+    RIA.addr0 = (unsigned)(PLAYER_PALETTE_ADDR + ((unsigned)index * 2u));
+    RIA.step0 = 1;
+    RIA.rw0 = color & 0xFF;
+    RIA.rw0 = color >> 8;
+}
+
+void sprite_mode5_init(void) {
+    int rc;
+    int16_t center_x = (int16_t)((SCREEN_WIDTH - PLAYER_SPRITE_SIZE_PX) / 2);
+    int16_t center_y = (int16_t)((SCREEN_HEIGHT - PLAYER_SPRITE_SIZE_PX) * 2 / 3); // Start slightly lower than center for better composition
+
+    PLAYER_CONFIG = SPRITE_DATA_END; // Just after the end of sprite data
+
+    xram0_struct_set(PLAYER_CONFIG, vga_mode5_sprite_t, x_pos_px, center_x);
+    xram0_struct_set(PLAYER_CONFIG, vga_mode5_sprite_t, y_pos_px, center_y);
+    xram0_struct_set(PLAYER_CONFIG, vga_mode5_sprite_t, xram_sprite_ptr, PLAYER_DATA);
+    xram0_struct_set(PLAYER_CONFIG, vga_mode5_sprite_t, palette_ptr, PLAYER_PALETTE_ADDR);
+    player_frame = 0;
+
+
+    // Mode 5 args: MODE, OPTIONS, CONFIG, LENGTH, PLANE, BEGIN, END
+    if (xreg_vga_mode(5, 0x0A, PLAYER_CONFIG, 1, 1, 0, 0) < 0) {
+        puts("xreg_vga_mode failed");
+        return;
+    }
+
+
+    RIA.addr0 = PLAYER_PALETTE_ADDR;
+    RIA.step0 = 1;
+    for (int i = 0; i < 16; i++) {
+        RIA.rw0 = player_palette[i] & 0xFF;
+        RIA.rw0 = player_palette[i] >> 8;
+    }
+
+    sprite_mode5_write_palette_entry(PLAYER_ENGINE_PALETTE_INDEX, 0x0000);
+
+
+    puts("Mode5 player sprite ready");
+}
+
+/**
+ * Update sprite position on screen
+ * Clamps position to screen bounds
+ */
+void sprite_mode5_set_position(int16_t x, int16_t y)
+{
+    // Clamp X to valid screen range (0 to SCREEN_WIDTH - PLAYER_SPRITE_SIZE_PX)
+    if (x < 0) x = 0;
+    if (x > (int16_t)(SCREEN_WIDTH - PLAYER_SPRITE_SIZE_PX)) {
+        x = (int16_t)(SCREEN_WIDTH - PLAYER_SPRITE_SIZE_PX);
+    }
+    
+    // Clamp Y to valid screen range (0 to SCREEN_HEIGHT - PLAYER_SPRITE_SIZE_PX)
+    if (y < 0) y = 0;
+    if (y > (int16_t)(SCREEN_HEIGHT - PLAYER_SPRITE_SIZE_PX)) {
+        y = (int16_t)(SCREEN_HEIGHT - PLAYER_SPRITE_SIZE_PX);
+    }
+    
+    // Update sprite position in XRAM
+    xram0_struct_set(PLAYER_CONFIG, vga_mode5_sprite_t, x_pos_px, x);
+    xram0_struct_set(PLAYER_CONFIG, vga_mode5_sprite_t, y_pos_px, y);
+}
+
+void sprite_mode5_set_frame(uint8_t frame_index)
+{
+    if (frame_index >= PLAYER_FRAME_COUNT) {
+        frame_index = 0;
+    }
+    if (frame_index == player_frame) {
+        return;
+    }
+
+    player_frame = frame_index;
+    xram0_struct_set(
+        PLAYER_CONFIG,
+        vga_mode5_sprite_t,
+        xram_sprite_ptr,
+        (PLAYER_DATA + ((unsigned)frame_index * PLAYER_FRAME_SIZE))
+    );
+}
+
+void sprite_mode5_update_engine(bool moving_down)
+{
+    if (moving_down) {
+        engine_tick = 0;
+        sprite_mode5_write_palette_entry(PLAYER_ENGINE_PALETTE_INDEX, 0x0000);
+        return;
+    }
+
+    if (engine_tick == 0) {
+        sprite_mode5_write_palette_entry(PLAYER_ENGINE_PALETTE_INDEX, engine_colors[engine_phase]);
+        engine_phase = (uint8_t)((engine_phase + 1) % 3);
+    }
+
+    engine_tick = (uint8_t)((engine_tick + 1) % ENGINE_ANIM_TICK_FRAMES);
+}
+```
+
+and updated header file:
+
+```c
+#ifndef SPRITE_MODE5_H
+#define SPRITE_MODE5_H
+
+#include <stdbool.h>
+
+typedef struct {
+    int16_t x_pos_px;
+    int16_t y_pos_px;
+    uint16_t xram_sprite_ptr;
+    uint16_t palette_ptr;
+} vga_mode5_sprite_t;
+
+// Palette extracted from Sprites/Player.png
+static const uint16_t player_palette[16] = {
+    0x0000, // transparent
+    0xA820,
+    0x0560,
+    0xAD60,
+    0x0035,
+    0xA835,
+    0x02B5,
+    0xAD75,
+    0x52AA,
+    0xFAAA,
+    0x57EA,
+    0xFFEA,
+    0x52BF, // index 12 -- engine glow
+    0xFABF,
+    0x57FF,
+    0xFFFF,
+};
+
+void sprite_mode5_init(void);
+void sprite_mode5_set_position(int16_t x, int16_t y);
+void sprite_mode5_set_frame(uint8_t frame_index);
+void sprite_mode5_update_engine(bool moving_down);
+
+#endif // SPRITE_MODE5_H
+```
 
 
 

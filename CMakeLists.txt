@@ -10,10 +10,10 @@ project(RPDemo C CXX ASM)
 add_executable(RPDemo)
 
 rp6502_asset(RPDemo 0x10000 images/Player_4bpp.bin)
-rp6502_asset(RPDemo 0x10080 images/StarFields_BG_map.bin)
-rp6502_asset(RPDemo 0x109E0 images/StarFields_FG_map.bin)
-rp6502_asset(RPDemo 0x11340 images/StarFields_HUD_map.bin)
-rp6502_asset(RPDemo 0x117F0 images/StarFields_tiles_4bpp.bin)
+rp6502_asset(RPDemo 0x10180 images/StarFields_BG_map.bin)
+rp6502_asset(RPDemo 0x10AE0 images/StarFields_FG_map.bin)
+rp6502_asset(RPDemo 0x11440 images/StarFields_HUD_map.bin)
+rp6502_asset(RPDemo 0x118F0 images/StarFields_tiles_4bpp.bin)
 rp6502_asset(RPDemo help src/help.txt)
 
 rp6502_executable(RPDemo 
