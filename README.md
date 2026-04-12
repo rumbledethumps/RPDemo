@@ -615,7 +615,7 @@ We add the following to ```constants.h```
 #define OPL_XRAM_ADDR   0xFE00  // Native RIA OPL2 register page
 #define OPL_SIZE        0x0100
 ```
-This place in XRAM will contain all the OPL2 registers.  In ```main.c``` we simply need to add ```init_input_system();```
+This place in XRAM will contain all the OPL2 registers. You can choose any address in XRAM as long as that address starts on a page boundary (e.g, 0xF000, 0xF100, etc.).  In ```main.c``` we simply need to add ```music_init();```
 and ```music_update();``` to play our music track, so our main loop will look like this:
 
 ```c
@@ -631,7 +631,7 @@ int main(void)
         puts("Fatal: graphics initialization failed");
         return 1;
     }
-    music_init();
+    music_init();  // <- Add this line to initialize the music system
     init_input_system();
     player_controller_init();
 
@@ -645,7 +645,7 @@ int main(void)
         handle_input();
 
         // 3. UPDATE
-        music_update();
+        music_update(); // <- Add this line to update the music system
         tile_mode2_update_scroll();
         player_controller_update();
     }

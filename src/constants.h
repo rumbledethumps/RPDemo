@@ -30,7 +30,7 @@
 #define STARFIELD_HUD_HEIGHT    30                 // Height of starfield HUD in tiles
 
 #define STARFIELD_TILES_DATA   (STARFIELD_HUD_DATA + STARFIELD_HUD_SIZE) // Address for starfield tile bitmaps
-#define STARFIELD_TILES_SIZE    0x1B80U             // 7040 bytes (220 tiles at 32 bytes each for 4bpp)
+#define STARFIELD_TILES_SIZE    0x2000U             // 8192 bytes (256 tiles at 32 bytes each for 4bpp)
 
 #define PROJECTILE_DATA        (STARFIELD_TILES_DATA + STARFIELD_TILES_SIZE) // Address for projectile sprite data
 #define PROJECTILE_DATA_SIZE    0x0040U            // 64 bytes (2 frame 8x8 at 4bpp)

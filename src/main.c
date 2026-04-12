@@ -6,10 +6,9 @@
 #include "tile_mode2.h"
 #include "input.h"
 #include "player_controller.h"
+#include "game_state.h"
 #include "music.h"
 #include "projectile.h"
-
-
 
 static bool init_graphics(void)
 {
@@ -46,6 +45,7 @@ int main(void)
     music_init();
     init_input_system();
     player_controller_init();
+    game_state_init();
 
     // Main loop
     while (true) {
@@ -56,11 +56,26 @@ int main(void)
         // 2. INPUT
         handle_input();
 
+        {
+            game_transition_t transition = game_state_handle_start_button(
+                is_action_pressed(0, ACTION_BTN_START)
+            );
+
+            if (transition == GAME_TRANSITION_START_GAME) {
+                tile_mode2_start_gameplay_transition();
+                music_set_track("music/RESOURCE.005.vgm");
+            }
+        }
+
         // 3. UPDATE
         music_update();
-        tile_mode2_update_scroll();
-        player_controller_update();
-        projectile_update();
+        if (game_state_get() != GAME_STATE_PAUSED) {
+            tile_mode2_update_scroll();
+        }
+        if (game_state_get() == GAME_STATE_PLAYING) {
+            player_controller_update();
+            projectile_update();
+        }
     }
 
     return 0;

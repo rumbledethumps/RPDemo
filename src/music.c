@@ -38,6 +38,32 @@ void music_init(void) {
     }
 }
 
+bool music_set_track(const char *path) {
+    if (path == NULL) {
+        return false;
+    }
+
+    if (strcmp(k_music_path, path) == 0) {
+        return true;
+    }
+
+    if (g_player.fd >= 0) {
+        vgm_close(&g_player);
+        g_player.fd = -1;
+    }
+
+    k_music_path = path;
+    if (music_start_current()) {
+        puts("Music resource switched");
+        puts(k_music_path);
+        return true;
+    }
+
+    puts("Music resource failed to load");
+    puts(g_status_line);
+    return false;
+}
+
 void music_update(void) {
     bool track_ended = false;
     vgm_update(&g_player, 735u, &track_ended, g_status_line, sizeof(g_status_line));
