@@ -1074,7 +1074,163 @@ The example below shows how we can implement a simple game loop with a title scr
   ```
 
 
+## Enemies and Collision Detection
 
+Now we can add enemy sprites and basic combat.
+
+The implementation has four parts:
+1. Reserve memory and assets for enemy frames
+2. Initialize an enemy sprite pool in Mode 5
+3. Spawn/update enemies in waves
+4. Detect bullet hits and despawn both objects
+
+### 1. Enemy Data Layout and Asset
+
+First, add the enemy sprite sheet to CMake:
+
+```cmake
+rp6502_asset(RPDemo 0x13930 images/Enemies_4bpp.bin)
+```
+
+Then define enemy layout in constants.h:
+
+```c
+#define ENEMY_DATA             (PROJECTILE_DATA + PROJECTILE_DATA_SIZE)
+#define ENEMY_DATA_SIZE        0x0380U              // 7 frames * 128 bytes
+#define ENEMY_SPRITE_SIZE_PX   16
+#define ENEMY_FRAME_SIZE       0x0080U
+#define ENEMY_TYPE_COUNT       7
+#define MAX_ENEMIES            32
+
+#define ENEMY_PALETTE_ADDR     0xFCA0
+#define ENEMY_PALETTE_SIZE     0x0020
+
+extern unsigned ENEMY_CONFIG;
+```
+
+`ENEMY_DATA_SIZE` is 896 bytes because each 16x16 frame at 4bpp is 128 bytes and we have 7 types.
+
+### 2. Enemy Sprite Pool (Mode 5)
+
+In sprite_mode5.c, enemy sprites are initialized after projectile sprites:
+
+```c
+void sprite_mode5_init_enemies(void) {
+    ENEMY_CONFIG = PROJECTILE_CONFIG + (MAX_PROJECTILES * sizeof(vga_mode5_sprite_t));
+
+    for (uint8_t i = 0; i < MAX_ENEMIES; i++) {
+        unsigned ptr = ENEMY_CONFIG + ((unsigned)i * sizeof(vga_mode5_sprite_t));
+        xram0_struct_set(ptr, vga_mode5_sprite_t, x_pos_px, -32);
+        xram0_struct_set(ptr, vga_mode5_sprite_t, y_pos_px, -32);
+        xram0_struct_set(ptr, vga_mode5_sprite_t, xram_sprite_ptr, ENEMY_DATA);
+        xram0_struct_set(ptr, vga_mode5_sprite_t, palette_ptr, ENEMY_PALETTE_ADDR);
+    }
+
+    if (xreg_vga_mode(5, 0x0A, ENEMY_CONFIG, MAX_ENEMIES, 0, 24, 0) < 0) {
+        puts("xreg_vga_mode failed");
+        return;
+    }
+}
+```
+
+Important details:
+- Plane `0` is used for enemies (with tiles and player in higher layers)
+- `BEGIN=24` keeps them out of the HUD scanlines
+- All enemy sprites start off-screen at `(-32, -32)`
+
+To move and retarget enemy type frames:
+
+```c
+void sprite_mode5_set_enemy(uint8_t slot, int16_t x, int16_t y, uint8_t type)
+{
+    unsigned ptr = ENEMY_CONFIG + ((unsigned)slot * sizeof(vga_mode5_sprite_t));
+    xram0_struct_set(ptr, vga_mode5_sprite_t, x_pos_px, x);
+    xram0_struct_set(ptr, vga_mode5_sprite_t, y_pos_px, y);
+    xram0_struct_set(ptr, vga_mode5_sprite_t, xram_sprite_ptr,
+        (ENEMY_DATA + ((unsigned)type * ENEMY_FRAME_SIZE)));
+}
+```
+
+### 3. Enemy Waves and Zig-Zag Path
+
+The enemy module keeps a fixed pool and a small wave state machine.
+
+Wave states:
+- `WAVE_STATE_DELAY`
+- `WAVE_STATE_SPAWNING`
+- `WAVE_STATE_CLEARING`
+
+Enemies spawn one-by-one in a wave, follow a shared zig-zag path, and are disabled once they leave the bottom of the screen.
+
+Spawn starts off-screen so enemies enter cleanly (sprite coordinates are top-left):
+
+```c
+enemies[slot].y = -ENEMY_SPRITE_SIZE_PX;
+```
+
+Then each frame:
+
+```c
+enemies[i].y += ENEMY_SPEED_Y;
+enemies[i].x = enemy_path_x_for_y(enemies[i].y);
+```
+
+When a wave clears, the next wave uses the next type index:
+
+```c
+wave_type = (uint8_t)((wave_type + 1) % ENEMY_TYPE_COUNT);
+```
+
+### 4. Bullet vs Enemy Collision
+
+Collision is implemented as AABB overlap between an enemy box and active player bullets.
+
+In projectile.c:
+
+```c
+bool projectile_hit_test_enemy(int16_t x, int16_t y, int16_t width, int16_t height)
+{
+    // scans active player bullets, returns true on first overlap
+    // hit bullet is consumed and moved off-screen
+}
+```
+
+In enemy_update(), after movement:
+
+```c
+if (enemies[i].y >= HUD_TOP_PX &&
+    projectile_hit_test_enemy(enemies[i].x, enemies[i].y,
+                              ENEMY_SPRITE_SIZE_PX, ENEMY_SPRITE_SIZE_PX)) {
+    enemies[i].active = false;
+    sprite_mode5_set_enemy(i, -32, -32, enemies[i].type);
+    continue;
+}
+```
+
+This gives immediate hit feedback with simple despawn behavior.
+
+### 5. Main Loop Integration
+
+Initialization:
+
+```c
+sprite_mode5_init_projectiles();
+sprite_mode5_init_enemies();
+projectile_init();
+enemy_init();
+```
+
+Per-frame update while playing:
+
+```c
+if (game_state_get() == GAME_STATE_PLAYING) {
+    player_controller_update();
+    projectile_update();
+    enemy_update();
+}
+```
+
+With this in place, the game now has enemy waves, multi-type spawning, and working player-bullet collision.
 
 
 
