@@ -585,6 +585,8 @@ With the assets in place let's update main.c to initialize the tilemaps and upda
 
 Every VSYNC we call ```tile_mode2_update_scroll();``` which will update the scroll position of the tilemaps to create a parallax scrolling effect.  The background layer will scroll slower than the foreground layer, which creates a sense of depth and movement in the scene.  You can customize the scrolling logic in ```tile_mode2_update_scroll()``` to create different scrolling patterns or to scroll based on player movement or other game events.  With the tilemaps set up and scrolling, you should now see a starfield background with a faster scrolling foreground layer, and a HUD layer at the top of the screen. 
 
+![Scrolling background](Screenshots/Screenshot_002.png)
+
 ## Music
 
 The Picocomputer has a built in OPL2 compatible sound chip which is very powerful and can create a wide range of sounds and music.  You can use the OPL2 to create music for your game, and you can also use it to create sound effects.  We are going to use VGM music files for our game, which is a common format for chiptune music.  You can find a large library of VGM music files online, or you can create your own using a tracker software like Furnace.   The VGM is streamed from the disk, so you can have long music tracks without taking up valuable XRAM space. 
