@@ -1,4 +1,5 @@
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 
 #include "constants.h"
@@ -35,6 +36,29 @@ void player_controller_set_speed(int level)
 int player_controller_get_speed(void)
 {
     return player_speed;
+}
+
+void player_controller_get_position(int16_t *x, int16_t *y)
+{
+    if (x != NULL) {
+        *x = (int16_t)(player_x_q8 >> Q8_SHIFT);
+    }
+    if (y != NULL) {
+        *y = (int16_t)(player_y_q8 >> Q8_SHIFT);
+    }
+}
+
+void player_controller_get_center_position(int16_t *x, int16_t *y)
+{
+    int16_t top_left_x = (int16_t)(player_x_q8 >> Q8_SHIFT);
+    int16_t top_left_y = (int16_t)(player_y_q8 >> Q8_SHIFT);
+
+    if (x != NULL) {
+        *x = (int16_t)(top_left_x + (PLAYER_SPRITE_SIZE_PX / 2));
+    }
+    if (y != NULL) {
+        *y = (int16_t)(top_left_y + (PLAYER_SPRITE_SIZE_PX / 2));
+    }
 }
 
 void player_controller_init(void)

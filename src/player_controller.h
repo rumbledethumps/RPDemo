@@ -5,6 +5,8 @@
 
 void player_controller_init(void);
 void player_controller_update(void);
+void player_controller_get_position(int16_t *x, int16_t *y);
+void player_controller_get_center_position(int16_t *x, int16_t *y);
 
 // Speed level 1..16: level 1 = 0.25 px/frame, level 16 = 4.0 px/frame.
 // Each step is 0.25 px/frame. Default is 3 (0.75 px/frame).

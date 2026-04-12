@@ -136,6 +136,22 @@ void sprite_mode5_set_projectile_position(uint8_t slot, int16_t x, int16_t y)
     xram0_struct_set(ptr, vga_mode5_sprite_t, y_pos_px, y);
 }
 
+void sprite_mode5_set_projectile_frame(uint8_t slot, uint8_t frame_index)
+{
+    unsigned ptr = PROJECTILE_CONFIG + ((unsigned)slot * sizeof(vga_mode5_sprite_t));
+
+    if (frame_index >= PROJECTILE_FRAME_COUNT) {
+        frame_index = 0;
+    }
+
+    xram0_struct_set(
+        ptr,
+        vga_mode5_sprite_t,
+        xram_sprite_ptr,
+        (PROJECTILE_DATA + ((unsigned)frame_index * PROJECTILE_FRAME_SIZE))
+    );
+}
+
 /**
  * Update sprite position on screen
  * Clamps position to screen bounds

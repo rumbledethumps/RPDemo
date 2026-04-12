@@ -1283,6 +1283,136 @@ score_init();
 
 so score is immediately drawn as `000000` before gameplay starts.
 
+### 7. Pattern-Driven Enemy Waves and Enemy Fire
+
+Once the basic enemy wave system was working, the next step was to give each enemy index its own movement and attack behavior.
+
+The main architectural change was to refactor `enemy.c` away from a single shared movement rule and into a pattern-driven wave controller.  We still keep the same outer wave flow:
+
+```c
+WAVE_STATE_DELAY -> WAVE_STATE_SPAWNING -> WAVE_STATE_CLEARING
+```
+
+and we still advance through enemy indices sequentially:
+
+```c
+wave_type = (uint8_t)((wave_type + 1) % ENEMY_TYPE_COUNT);
+```
+
+However, each spawned enemy now carries its own behavior state:
+- phase
+- timers
+- fire cadence
+- target position
+- waypoint index
+- spiral step
+- per-pattern motion parameters
+
+This lets us reuse one enemy pool while still giving each wave a distinct identity.
+
+#### Shared Projectile Pool
+
+Rather than creating a second projectile system for enemy bullets, we expanded the existing projectile pool.
+
+Slot usage is now:
+- player bullets: slots `0..7`
+- enemy bullets: slots `8..31`
+
+In `projectile.h` this is represented with:
+
+```c
+#define FIRST_ENEMY_PROJECTILE_SLOT MAX_PLAYER_PROJECTILES
+```
+
+The projectile structure was expanded so bullets can belong to either side and can travel in arbitrary directions:
+
+```c
+typedef enum {
+    PROJECTILE_OWNER_NONE,
+    PROJECTILE_OWNER_PLAYER,
+    PROJECTILE_OWNER_ENEMY,
+} projectile_owner_t;
+```
+
+Each projectile now tracks:
+- owner
+- Q8 position
+- Q8 velocity
+- frame index
+
+This is what allows enemy bullets to travel downward, diagonally, or in spiral and barrage patterns.
+
+#### Player Position Accessors
+
+Several enemy patterns need to aim at the player.  To support this cleanly, `player_controller.c` now exposes:
+
+```c
+void player_controller_get_position(int16_t *x, int16_t *y);
+void player_controller_get_center_position(int16_t *x, int16_t *y);
+```
+
+Enemy code uses the center position whenever it needs to aim a dive or a bullet toward the player.
+
+#### Enemy Pattern Summary
+
+Enemy index `0`
+- Spawns from a shared quasi-random point at the top of the screen
+- Follows a zig-zag path
+- Dives straight down once vertically aligned with the player
+- Fires only occasionally with medium-speed bullets
+
+Enemy index `1`
+- Rises from the bottom of the screen
+- Each enemy has its own horizontal offset
+- Stops around mid-screen, rapid-fires, then exits upward
+
+Enemy index `2`
+- Enters from the top-left or top-right
+- Follows a corner path around the screen
+- Fires slow bullets at a regular cadence
+
+Enemy index `3`
+- Moves to a semi-random stop point
+- Holds position and emits bullets in a spiral pattern
+
+Enemy index `4`
+- Descends slowly from the top
+- After a delay, dives toward the player’s current position
+- Does not fire bullets
+
+Enemy index `5`
+- Enters from the side and forms a space-invaders-style line
+- Sweeps left and right while stepping downward
+- Fires medium-speed bullets toward the player
+
+Enemy index `6`
+- Moves toward the player
+- When close enough, despawns in a radial barrage of bullets
+
+#### Pattern Helpers
+
+To keep the code manageable, `enemy.c` now uses a set of shared helpers:
+- deterministic pseudo-random number generation for quasi-random spawn and target points
+- `enemy_compute_aim_velocity()` for aimed motion and aimed bullets
+- `enemy_try_move_towards()` for waypoint and stop-point movement
+- `enemy_fire_aimed()` and `enemy_fire_directional()` for attack logic
+- `enemy_fire_barrage()` for radial burst attacks
+
+This makes it possible to build new behaviors from the same small set of movement and fire primitives.
+
+#### Current Scope
+
+At this stage, enemy bullets are fully implemented as visuals and movement patterns, but player damage is intentionally not implemented yet.
+
+That means:
+- enemies can shoot
+- enemy bullets move correctly
+- enemy waves have different attack patterns
+- player bullets can still destroy enemies
+- enemy bullets do not yet reduce player health or trigger game over
+
+That keeps the architecture clean while the attack patterns are being designed and tuned.
+
 
 
 
