@@ -32,8 +32,18 @@
 #define STARFIELD_TILES_DATA   (STARFIELD_HUD_DATA + STARFIELD_HUD_SIZE) // Address for starfield tile bitmaps
 #define STARFIELD_TILES_SIZE    0x0600U            // 1536 bytes (48 tiles at 32 bytes each for 4bpp)
 
+#define PROJECTILE_DATA        (STARFIELD_TILES_DATA + STARFIELD_TILES_SIZE) // Address for projectile sprite data
+#define PROJECTILE_DATA_SIZE    0x0040U            // 64 bytes (2 frame 8x8 at 4bpp)
+#define PROJECTILE_SPRITE_SIZE_PX   8                 // Projectile sprite is 8x8 pixels
+#define PROJECTILE_FRAME_SIZE   0x0020U            // 32 bytes per 8x8 4bpp frame
+#define PROJECTILE_FRAME_COUNT  2                  // 2 frames for projectile
+#define MAX_PROJECTILES         32                  // Max number of projectiles on screen at once
+#define MAX_PLAYER_PROJECTILES  8                   // Slots 0..(MAX_PLAYER_PROJECTILES-1) are reserved for the player
 
-#define SPRITE_DATA_END        (STARFIELD_TILES_DATA + STARFIELD_TILES_SIZE) // End of sprite data
+// Projectile movement
+#define PROJECTILE_SPEED_PX     4                   // Pixels per frame
+#define HUD_TOP_PX              24                  // Rows 0-23 are HUD; bullets expire when y < HUD_TOP_PX
+#define SPRITE_DATA_END        (PROJECTILE_DATA + PROJECTILE_DATA_SIZE) // End of sprite data
 
 
 // Palette configurations
@@ -45,6 +55,8 @@
 #define TILE_FG_PALETTE_SIZE   0x0020
 #define TILE_HUD_PALETTE_ADDR  0xFC60  // 16-color palette for tile HUD (32 bytes, 0xFC60-0xFC7F)
 #define TILE_HUD_PALETTE_SIZE  0x0020
+#define PROJECTILE_PALETTE_ADDR 0xFC80 // 16-color palette for projectiles (32 bytes, 0xFC80-0xFC9F)
+#define PROJECTILE_PALETTE_SIZE 0x0020
 
 // OPL2 sound chip configuration
 #define OPL_XRAM_ADDR   0xFE00  // Native RIA OPL2 register page
@@ -56,6 +68,7 @@
 
 // Configs 
 extern unsigned PLAYER_CONFIG; // Address in XRAM where player sprite config is stored, for updates
+extern unsigned PROJECTILE_CONFIG; // Address in XRAM where projectile sprite config is stored, for updates
 extern unsigned TILE_BG_CONFIG; // Address in XRAM where tile background config is stored, for updates
 extern unsigned TILE_FG_CONFIG; // Address in XRAM where tile foreground config is stored, for updates
 extern unsigned TILE_HUD_CONFIG; // Address in XRAM where tile HUD config is stored, for updates

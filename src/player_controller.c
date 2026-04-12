@@ -4,6 +4,7 @@
 #include "constants.h"
 #include "input.h"
 #include "player_controller.h"
+#include "projectile.h"
 #include "sprite_mode5.h"
 
 // Speed level 1..16 maps to 0.25..4.0 pixels per frame (each step = 0.25 px/frame).
@@ -22,6 +23,7 @@ static int32_t player_y_q8;
 
 static bool prev_speed_down = false;
 static bool prev_speed_up = false;
+static uint8_t fire_cooldown = 0;
 
 void player_controller_set_speed(int level)
 {
@@ -62,6 +64,16 @@ void player_controller_update(void)
     bool moving_down = is_action_pressed(0, ACTION_MOVE_DOWN);
     bool moving_left = is_action_pressed(0, ACTION_MOVE_LEFT);
     bool moving_right = is_action_pressed(0, ACTION_MOVE_RIGHT);
+
+    // Fire projectile on X — held down, rate-limited
+    if (fire_cooldown > 0) fire_cooldown--;
+    if (is_action_pressed(0, ACTION_BTN_X) && fire_cooldown == 0) {
+        int16_t px = (int16_t)(player_x_q8 >> Q8_SHIFT);
+        int16_t py = (int16_t)(player_y_q8 >> Q8_SHIFT);
+        // Spawn at horizontal center of player, top edge
+        projectile_fire_player((int16_t)(px + (PLAYER_SPRITE_SIZE_PX - PROJECTILE_SPRITE_SIZE_PX) / 2), py);
+        fire_cooldown = PLAYER_FIRE_RATE;
+    }
 
     int32_t speed_q8 = SPEED_TO_Q8(player_speed);
 

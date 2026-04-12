@@ -637,7 +637,9 @@ int main(void)
 }
 ```
 
-Note that the player only supports VGM files that use OPL2 commands.  The player does not support VGZ.  Note, that VGZ is just gzipped VGM, so you can easily convert a VGZ file to VGM by unzipping it.
+Note that the player only supports VGM files that use OPL2 commands.  The player does not support VGZ.  Note, that VGZ is just gzipped VGM, so you can easily convert a VGZ file to VGM by unzipping it.  
+
+This is great!  We have implemented sprites, tilemaps, and music in our game!  We have a lot of tools at our disposal to create a fun and engaging game.  In the next section, we will start adding some polish to our game by implementing animations and palette swapping effects.
 
 ## Animations and Palette Swapping
 
@@ -868,10 +870,69 @@ void sprite_mode5_update_engine(bool moving_down);
 #endif // SPRITE_MODE5_H
 ```
 
+Here are the key functions to look at:
+
+```c
+sprite_mode5_set_frame(uint8_t frame_index)
+```
+This function updates the current frame of the sprite by changing the XRAM address that the VGA system uses to fetch the sprite data.  This allows us to create animations by simply updating the frame index in XRAM.
+
+```c
+sprite_mode5_update_engine(bool moving_down)
+```
+This function creates a simple animation effect for the player's engine by changing the color of a specific palette entry over time.  When the player is moving down, we reset the animation and set the engine color to black.  When the player is not moving down, we cycle through a set of colors to create a glowing effect for the engine.  This is done by updating the palette entry in XRAM that the sprite uses for the engine glow.  This allows us to create a dynamic visual effect without needing to change the sprite data itself, which can save memory and allow for more complex animations.
 
 
+## Adding Bullets 
 
+We can add a new asset for our projectile sprite data, and then set up a new sprite configuration in XRAM for the projectiles.  We can then create a pool of projectile sprites that we can activate and deactivate as needed to create bullets that the player can shoot.  This is a common technique in game development called object pooling, which allows us to reuse a fixed number of sprite instances for our bullets without needing to constantly create and destroy sprites, which can be expensive in terms of performance.
+```c
+rp6502_asset(RPDemo 0x11EF0 images/Projectiles_4bpp.bin
+```
 
+Here is the layout for the projectile sprite data and configuration in XRAM:
+```c
+#define PROJECTILE_DATA        (STARFIELD_TILES_DATA + STARFIELD_TILES_SIZE) // Address for projectile sprite data
+#define PROJECTILE_DATA_SIZE    0x0040U            // 64 bytes (2 frame 8x8 at 4bpp)
+#define PROJECTILE_SPRITE_SIZE_PX   8                 // Projectile sprite is 8x8 pixels
+#define PROJECTILE_FRAME_SIZE   0x0020U            // 32 bytes per 8x8 4bpp frame
+#define PROJECTILE_FRAME_COUNT  2                  // 2 frames for projectile
+#define MAX_PROJECTILES         64                  // Max number of projectiles on screen at once
+
+#define SPRITE_DATA_END        (PROJECTILE_DATA + PROJECTILE_DATA_SIZE) // End of sprite data
+```
+
+Here is the code to initialize the projectile sprites in ```sprite_mode5.c```.  Note that changed the options parameter in the xreg_vga_mode call to use 8x8 tiles with a 4-bit color index, which is appropriate for our projectile sprites.  We also set up a pool of projectile sprites in XRAM, initializing their positions off-screen and pointing them to the correct sprite data and palette.  This allows us to activate and deactivate these projectile sprites as needed during gameplay to create shooting mechanics.
+```c
+void sprite_mode5_init_projectiles(void) {
+    PROJECTILE_CONFIG = TILE_HUD_CONFIG + sizeof(vga_mode2_config_t); // Just after tile HUD config
+
+    for (uint8_t i = 0; i < MAX_PROJECTILES; i++) {
+
+        unsigned ptr = PROJECTILE_CONFIG + (i * sizeof(vga_mode5_sprite_t));
+
+        xram0_struct_set(ptr, vga_mode5_sprite_t, x_pos_px, -32); // Start off-screen
+        xram0_struct_set(ptr, vga_mode5_sprite_t, y_pos_px, -32);
+        xram0_struct_set(ptr, vga_mode5_sprite_t, xram_sprite_ptr, PROJECTILE_DATA);
+        xram0_struct_set(ptr, vga_mode5_sprite_t, palette_ptr, PROJECTILE_PALETTE_ADDR);
+    }
+
+    // Mode 5 args: MODE, OPTIONS, CONFIG, LENGTH, PLANE, BEGIN, END
+    if (xreg_vga_mode(5, 0x02, PROJECTILE_CONFIG, MAX_PROJECTILES, 1, 0, 0) < 0) {
+        puts("xreg_vga_mode failed");
+        return;
+    }
+
+    RIA.addr0 = PROJECTILE_PALETTE_ADDR;
+    RIA.step0 = 1;
+    for (int i = 0; i < 16; i++) {
+        RIA.rw0 = projectiles_palette[i] & 0xFF;
+        RIA.rw0 = projectiles_palette[i] >> 8;
+    }
+
+    puts("Mode5 projectile sprites ready");
+}
+```
 
 
 

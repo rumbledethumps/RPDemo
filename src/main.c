@@ -7,6 +7,7 @@
 #include "input.h"
 #include "player_controller.h"
 #include "music.h"
+#include "projectile.h"
 
 
 
@@ -22,6 +23,8 @@ static bool init_graphics(void)
 
     sprite_mode5_init();
     tile_mode2_init();
+    sprite_mode5_init_projectiles();
+    projectile_init();
 
     return true;
 }
@@ -57,6 +60,7 @@ int main(void)
         music_update();
         tile_mode2_update_scroll();
         player_controller_update();
+        projectile_update();
     }
 
     return 0;

@@ -6,6 +6,7 @@
 
 // Store the player config address for updates
 unsigned PLAYER_CONFIG;
+unsigned PROJECTILE_CONFIG; // Address in XRAM where projectile sprite config is stored, for updates
 
 static uint8_t player_frame = 0;
 static uint8_t engine_phase = 0;
@@ -43,7 +44,7 @@ void sprite_mode5_init(void) {
 
 
     // Mode 5 args: MODE, OPTIONS, CONFIG, LENGTH, PLANE, BEGIN, END
-    if (xreg_vga_mode(5, 0x0A, PLAYER_CONFIG, 1, 1, 0, 0) < 0) {
+    if (xreg_vga_mode(5, 0x0A, PLAYER_CONFIG, 1, 2, 0, 0) < 0) {
         puts("xreg_vga_mode failed");
         return;
     }
@@ -58,8 +59,43 @@ void sprite_mode5_init(void) {
 
     sprite_mode5_write_palette_entry(PLAYER_ENGINE_PALETTE_INDEX, 0x0000);
 
-
     puts("Mode5 player sprite ready");
+}
+
+void sprite_mode5_init_projectiles(void) {
+    PROJECTILE_CONFIG = TILE_HUD_CONFIG + sizeof(vga_mode2_config_t); // Just after tile HUD config
+
+    for (uint8_t i = 0; i < MAX_PROJECTILES; i++) {
+
+        unsigned ptr = PROJECTILE_CONFIG + (i * sizeof(vga_mode5_sprite_t));
+
+        xram0_struct_set(ptr, vga_mode5_sprite_t, x_pos_px, -32); // Start off-screen
+        xram0_struct_set(ptr, vga_mode5_sprite_t, y_pos_px, -32);
+        xram0_struct_set(ptr, vga_mode5_sprite_t, xram_sprite_ptr, PROJECTILE_DATA);
+        xram0_struct_set(ptr, vga_mode5_sprite_t, palette_ptr, PROJECTILE_PALETTE_ADDR);
+    }
+
+    // Mode 5 args: MODE, OPTIONS, CONFIG, LENGTH, PLANE, BEGIN, END
+    if (xreg_vga_mode(5, 0x02, PROJECTILE_CONFIG, MAX_PROJECTILES, 1, 0, 0) < 0) {
+        puts("xreg_vga_mode failed");
+        return;
+    }
+
+    RIA.addr0 = PROJECTILE_PALETTE_ADDR;
+    RIA.step0 = 1;
+    for (int i = 0; i < 16; i++) {
+        RIA.rw0 = projectiles_palette[i] & 0xFF;
+        RIA.rw0 = projectiles_palette[i] >> 8;
+    }
+
+    puts("Mode5 projectile sprites ready");
+}
+
+void sprite_mode5_set_projectile_position(uint8_t slot, int16_t x, int16_t y)
+{
+    unsigned ptr = PROJECTILE_CONFIG + ((unsigned)slot * sizeof(vga_mode5_sprite_t));
+    xram0_struct_set(ptr, vga_mode5_sprite_t, x_pos_px, x);
+    xram0_struct_set(ptr, vga_mode5_sprite_t, y_pos_px, y);
 }
 
 /**
