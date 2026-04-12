@@ -1074,6 +1074,8 @@ The example below shows how we can implement a simple game loop with a title scr
   ```
 
 
+![Leaving Warp to start the game](Screenshots/Screenshot_003.png)
+
 ## Enemies and Collision Detection
 
 Now we can add enemy sprites and basic combat.
@@ -1231,6 +1233,8 @@ if (game_state_get() == GAME_STATE_PLAYING) {
 ```
 
 With this in place, the game now has enemy waves, multi-type spawning, and working player-bullet collision.
+
+![Enemies](Screenshots/Screenshot_004.png)
 
 ### 6. Score System
 
