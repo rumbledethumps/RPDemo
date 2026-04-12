@@ -32,7 +32,7 @@ At this point, you should be able to build the project in VScode with the build 
 ```
 python3 ./tools/rp6502.py run build/RPDemo.rp6502
 ```
-[Note: If you are on a Mac, you can use rp6502_mac.py found in the tools directory of this repository.]
+[Note: If you are on a Mac, you can use ```rp6502_mac.py``` found in the tools directory of this repository.]
 
 ## Setting up Graphics
 
@@ -56,7 +56,7 @@ static bool init_graphics(void)
 }
 ```
 
-and then we will call this function from our main, and also set up a vsync loop to keep the program running.  Update your main function to look like this:
+The key line here is ```xreg_vga_canvas(1);``` which initializes the VGA system and sets up a canvas with a resolution of 320x240 pixels.  If the function returns a negative value, it means that there was an error initializing the graphics system, so we print an error message and return false.  If the initialization is successful, we return true.  We can now call this function from our main, and also set up a vsync loop to keep the program running.  Update your main function to look like this:
 
 ```c
 
@@ -80,11 +80,13 @@ int main(void)
 }
 ```
 
-If you build and run this code, you should see a blank screen on your Picocomputer.  This means that we have successfully initialized the graphics system and are running a main loop that is synced to the vertical refresh of the display.  In the next section, we will start drawing some pixels to the screen!  To exit the program hit "CTRL + ALT + DEL" on the keyboard connected to your Picocomputer.
+We have added ```vsync_last``` to keep track of the last vsync state.  In our main loop, we check if the current vsync state is the same as the last one, and if it is, we continue to the next iteration of the loop.  This effectively creates a loop that runs once per frame, synced to the vertical refresh of the display.  This is important for ensuring smooth graphics and avoiding screen tearing.
+
+If you build and run this code, you should see a blank screen on your Picocomputer.  This means that we have successfully initialized the graphics system and are running a main loop that is synced to the vertical refresh of the display.  In the next section, we will start drawing some pixels to the screen!  To exit the program hit ```CTRL + ALT + DEL``` or ```ALT + F4``` on the keyboard connected to your Picocomputer.
 
 ## Adding a Sprite
 
-We are going to use Mode 5 Sprite system for the demo.  It's very flexible and powerful.  We are going to add a 4-bpp (16-colour) sprite with a custom palette and start to get a feel for the XRAM system.   The images folder contains "Player_4bpp.bin" which is a 16x16 pixel sprite in the 4-bpp format.  We will learn later how to make our own sprites and convert them to the correct format.  
+We are going to use Mode 5 Sprite system for the demo.  It's very flexible and powerful.  We are going to add a 4-bpp (16-colour) sprite with a custom palette and start to get a feel for the XRAM system.   The images folder contains ```Player_4bpp.bin``` which is a 16x16 pixel tile-based Sprite in the 4-bpp format.  We will learn later how to make our own sprites and convert them to the correct format.  
 
 We are going to load this sprite into XRAM and then draw it to the screen.  First, we need to add the sprite as an asset in our CMakeLists.txt file.  Update your CMakeLists.txt to add a new rp6502_asset for the sprite, and make sure to include the correct path to the image file.  Your CMakeLists.txt should now look like this:
 
@@ -144,7 +146,9 @@ I personally like to track assets using a ```constants.h``` file.
 
 This file defines some constants for our game, including the screen dimensions and the memory layout for our sprite data.  We have defined a section of XRAM starting at 0x0000 for our sprite data, and we have allocated 128 bytes for our player sprite, which is a 16x16 pixel sprite at 4 bits per pixel (4bpp).  This means that each pixel takes up 4 bits, so we can fit two pixels in one byte.  Therefore, a 16x16 sprite will require 128 bytes of memory (16 * 16 * 4 bits / 8 bits per byte = 128 bytes).  If you use the Spreadsheet all the Hex math is done for you.  
 
-Now let's create ```sprite_mode5.c``` and ````sprite_mode5.h```` files to handle the sprite drawing logic.  In these files, we will write functions to initialize the sprite system, load our sprite data into XRAM, and draw the sprite to the screen.  This will help us keep our main.c file clean and organized.  Here is an example of what the contents of these files might look like:
+We have also defined XRAM space for the player's palette, which is 32 bytes (16 colors * 2 bytes per color = 32 bytes).  The palette will be stored at address 0xFC00.  We will load our custom palette data into this location in XRAM and then point the VGA system to it when we set up our sprite.  Notice that in CMakeFiles.txt we have placed the sprite at 0x10000, but in our constants.h we have defined the sprite data to start at 0x0000. The offset is handled by rp6502.h XRAM calls.
+
+Now let's create ```sprite_mode5.c``` and ````sprite_mode5.h```` files to handle the sprite drawing logic.  In these files, we will write functions to initialize the sprite system, load our sprite data into XRAM, and draw the sprite to the screen.  This will help us keep our main.c file clean and organized.  Here is an example of what the contents of these files might look like.  Here is the code for ```sprite_mode5.c```:
 
 ```c
 #include <rp6502.h>
@@ -188,6 +192,8 @@ void sprite_mode5_init(void) {
 }
 ```
 
+and here is the code for ```sprite_mode5.h```:
+
 ```c
 #ifndef SPRITE_MODE5_H
 #define SPRITE_MODE5_H
@@ -224,7 +230,7 @@ void sprite_mode5_init(void);
 #endif // SPRITE_MODE5_H
 ```
 
-Update CMakeLists.txt to include the new source file:
+We need to update our CMakeLists.txt to include the new source file:
 
 ```cmake
 target_sources(RPDemo PRIVATE
@@ -334,7 +340,7 @@ Let's break this down.
     xreg(0, 0, 0, KEYBOARD_INPUT);
     xreg(0, 0, 2, GAMEPAD_INPUT);
 ```
-This sets up the XRAM addresses for the keyboard and gamepad inputs and enables the devices.  
+This sets the XRAM addresses for the keyboard and gamepad inputs and enables the devices.  
 
 ```c
     init_input_system();
@@ -390,15 +396,49 @@ The key here is,
 ```
 We are directly updating the XRAM values for the sprite's position.  This is a powerful feature of the Picocomputer, as it allows us to update sprite properties directly from our game logic without needing to make expensive system calls.  By writing directly to XRAM, we can achieve very fast updates to our sprites, which is essential for smooth gameplay.
 
-At this point, you should be able to move your player sprite around the screen using the inputs you have set up.  You can customize the input handling logic in ```player_controller_update()```.  
+At this point, you should be able to move your player sprite around the screen using the D-pad or controller sticks.  You can customize the input handling logic in ```player_controller_update()``` or replace it with your own control scheme. 
 
 ## Tilemaps and Backgrounds
 
 Each layer can have a fill and sprite component.  So far we have added a sprite to layer 2 (top).  Now we are going to add tiles to layers 0, 1 and 2 to add a slowly moving background, with a faster foreground to create a parallax effect.  The will we add a top layer for a HUD to show a score.  
 
-This will be done with ```tile_mode2.c``` and ```tile_mode2.h```.  You can added this to your CMakeLists.txt, add the header to main.c, and add ```tile_mode2_init();``` to ```init_graphics()``` just like we did with the sprite system.  In ```main.c``` we add ```tile_mode2_update_scroll();``` which will update the scroll position of the tilemaps to create a parallax scrolling effect.  The tile data is stored in XRAM and we can update it directly from our game logic just like we did with the sprites.  This allows us to create dynamic backgrounds that can change based on the player's actions or the game's state.
+This will be done with ```tile_mode2.c``` and ```tile_mode2.h```.  You can add ```tile_mode2.c``` to your CMakeLists.txt, add the header to main.c, and add ```tile_mode2_init();``` to ```init_graphics()``` just like we did with the sprite system.  In ```main.c``` we add ```tile_mode2_update_scroll();``` to our main loop which will update the scroll position of the tilemaps to create a parallax scrolling effect.  The tile data is stored in XRAM and we can update it directly from our game logic just like we did with the sprites.  This allows us to create dynamic backgrounds that can change based on the player's actions or the game's state. 
 
-We have a number of new assets:
+```c
+int main(void)
+{
+
+    // Initialize input
+    xregn(0, 0, 0, 1, KEYBOARD_INPUT);
+    xregn(0, 0, 2, 1, GAMEPAD_INPUT);
+
+    // Initialise graphics
+    if (!init_graphics()) {
+        puts("Fatal: graphics initialization failed");
+        return 1;
+    }
+    init_input_system();
+    player_controller_init();
+
+    // Main loop
+    while (true) {
+        // 1. SYNC
+        if (RIA.vsync == vsync_last) continue;
+        vsync_last = RIA.vsync;
+
+        // 2. INPUT
+        handle_input();
+
+        // 3. UPDATE
+        tile_mode2_update_scroll();
+        player_controller_update();
+    }
+
+    return 0;
+}
+```
+
+This code will not work until we set up the tilemaps and load the tile data into XRAM.  Let's start by looking at the assets we need for the tilemaps.  We have a number of new assets:
 - ```images/StarFields_BG_map.bin``` - This contains the tile index for each 8x8 tile in the background layer (layer 0).  It is a 40x60 tilemap.  We can up to 256 tiles, so we need 1 byte per tile, which means this tilemap requires 2400 bytes of memory (40 tiles * 60 tiles * 1 byte per tile = 2400 bytes).  Notice that the tilemap is larger than the screen size, this allows us to scroll the background to create a parallax effect.
 - ```images/StarFields_FG_map.bin``` - This will be our foreground layer (layer 1) and it is also a 40x60 tilemap with 1 byte per tile, so it also requires 2400 bytes of memory.
 - ```images/StarFields_HUD_map.bin``` - This will be our HUD layer (layer 2) and will be a 40x30 tilemap, since we don't need to scroll it.  
@@ -406,7 +446,7 @@ We have a number of new assets:
 
 Note, we are going to share 1 set of tiles for all 3 layers, but you can have a different tileset for each layer if you want.  We will learn how to generate tile maps later on, for now we are just learning how to use them.  The tilemaps and tileset are loaded into XRAM as assets in our CMakeLists.txt file, just like we did with the sprite.  We will then set up the tilemaps in XRAM and point the VGA system to them.  Once that is done, we can update the scroll position of the tilemaps in our main loop to create a parallax scrolling effect.
 
-Let's example the code for initializing the tilemaps in ```tile_mode2.c```:
+Let's example part of the code for initializing the tilemaps in ```tile_mode2.c```:
 
 ```c
     TILE_BG_CONFIG = PLAYER_CONFIG + sizeof(vga_mode5_sprite_t); // Add after sprite config
@@ -430,7 +470,39 @@ Let's example the code for initializing the tilemaps in ```tile_mode2.c```:
     }
 ```
 
-We are setting up the tilemap configuration in XRAM.  We place the configuration for the background layer (layer 0) just after the sprite configuration in XRAM.  We set the wrapping mode for both X and Y to true, which means that when we scroll the tilemap, it will wrap around to the other side.  We set the initial position of the tilemap to (0, 0) and we specify the width and height of the tilemap in tiles.  We then point to the XRAM address where our tilemap data is stored, as well as the address of our palette and our tileset.  We then enable the tilemap layer by calling xreg_vga_mode with the appropriate parameters.  In this case, we are using Mode 2, which is the tilemap mode, and we set the options to use 8x8 tiles with an 4-bit color index (which allows for up to 16 colors in our palette).  We specify that this is plane 0, which means it will be behind the sprites on plane 1.  We also specify the begin and end scanlines for this layer, in this case we are excluding the top 24 scanlines to leave room for our HUD layer.
+Let's look at this step by step.
+```c
+    TILE_BG_CONFIG = PLAYER_CONFIG + sizeof(vga_mode5_sprite_t);
+```
+We are setting up the tilemap configuration in XRAM.  We place the configuration for the background layer (layer 0) just after the sprite configuration in XRAM.  
+
+
+```c
+    xram0_struct_set(TILE_BG_CONFIG, vga_mode2_config_t, x_wrap, true);
+    xram0_struct_set(TILE_BG_CONFIG, vga_mode2_config_t, y_wrap, true);
+```
+We set the wrapping mode for both X and Y to true, which means that when we scroll the tilemap, it will wrap around to the other side. 
+
+```c
+    xram0_struct_set(TILE_BG_CONFIG, vga_mode2_config_t, x_pos_px, 0);
+    xram0_struct_set(TILE_BG_CONFIG, vga_mode2_config_t, y_pos_px, 0);
+    xram0_struct_set(TILE_BG_CONFIG, vga_mode2_config_t, width_tiles,  STARFIELD_BG_WIDTH);
+    xram0_struct_set(TILE_BG_CONFIG, vga_mode2_config_t, height_tiles, STARFIELD_BG_HEIGHT);
+```
+We set the initial position of the tilemap to (0, 0) and we specify the width and height of the tilemap in tiles.  
+
+
+```c
+    xram0_struct_set(TILE_BG_CONFIG, vga_mode2_config_t, xram_data_ptr,    STARFIELD_BG_DATA); // tile ID grid
+    xram0_struct_set(TILE_BG_CONFIG, vga_mode2_config_t, xram_palette_ptr, TILE_BG_PALETTE_ADDR);
+    xram0_struct_set(TILE_BG_CONFIG, vga_mode2_config_t, xram_tile_ptr,    STARFIELD_TILES_DATA); 
+```
+We then point to the XRAM address where our tilemap data is stored, as well as the address of our palette and our tileset.  
+
+```c
+    xreg_vga_mode(2, 0x02, TILE_BG_CONFIG, 0, 24, 0)
+```
+We then enable the tilemap layer by calling xreg_vga_mode with the appropriate parameters.  In this case, we are using Mode 2, which is the tilemap mode, and we set the options to use 8x8 tiles with an 4-bit color index (which allows for up to 16 colors in our palette).  We specify that this is plane 0, which means it will be behind the sprites on plane 1.  We also specify the begin and end scanlines for this layer, in this case we are excluding the top 24 scanlines to leave room for our HUD layer.
 
 We repeat this process for the foreground layer (layer 1) and the HUD layer (layer 2), making sure to use different XRAM addresses for each layer's configuration. 
 
@@ -508,39 +580,7 @@ rp6502_asset(RPStarHopper 0x117F0 images/StarFields_tiles_4bpp.bin)
 
 With the assets in place let's update main.c to initialize the tilemaps and update the scroll position in the main loop. Add ```tile_mode2_init();``` to ```init_graphics()``` and add ```tile_mode2_update_scroll();``` to the main loop:
 
-```c
-int main(void)
-{
 
-    // Initialize input
-    xregn(0, 0, 0, 1, KEYBOARD_INPUT);
-    xregn(0, 0, 2, 1, GAMEPAD_INPUT);
-
-    // Initialise graphics
-    if (!init_graphics()) {
-        puts("Fatal: graphics initialization failed");
-        return 1;
-    }
-    init_input_system();
-    player_controller_init();
-
-    // Main loop
-    while (true) {
-        // 1. SYNC
-        if (RIA.vsync == vsync_last) continue;
-        vsync_last = RIA.vsync;
-
-        // 2. INPUT
-        handle_input();
-
-        // 3. UPDATE
-        tile_mode2_update_scroll();
-        player_controller_update();
-    }
-
-    return 0;
-}
-```
 
 Every VSYNC we call ```tile_mode2_update_scroll();``` which will update the scroll position of the tilemaps to create a parallax scrolling effect.  The background layer will scroll slower than the foreground layer, which creates a sense of depth and movement in the scene.  You can customize the scrolling logic in ```tile_mode2_update_scroll()``` to create different scrolling patterns or to scroll based on player movement or other game events.  With the tilemaps set up and scrolling, you should now see a starfield background with a faster scrolling foreground layer, and a HUD layer at the top of the screen. 
 
