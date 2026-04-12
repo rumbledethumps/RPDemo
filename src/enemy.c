@@ -43,6 +43,8 @@
 
 #define TYPE5_FORMATION_SPACING_X 28
 #define TYPE5_FORMATION_Y        (HUD_TOP_PX + 24)
+#define TYPE5_STEP_DOWN_Q8       TO_Q8(12)
+#define TYPE5_STEP_DOWN_SPEED_Q8 ENEMY_SLOW_SPEED_Q8
 
 typedef struct {
     bool    active;
@@ -85,6 +87,7 @@ static uint8_t wave_type0_shots_remaining;
 static int32_t formation_anchor_x_q8;
 static int32_t formation_anchor_y_q8;
 static int16_t formation_vx_q8;
+static int32_t formation_step_down_remaining_q8;
 
 static const int8_t radial_dirs[8][2] = {
     { 8,  0},
@@ -167,10 +170,10 @@ static bool enemy_is_offscreen(uint8_t slot)
     int16_t y = FROM_Q8(enemies[slot].y_q8);
 
     return (
-        x < -ENEMY_SPRITE_SIZE_PX ||
-        x > SCREEN_WIDTH ||
-        y < -ENEMY_SPRITE_SIZE_PX ||
-        y > SCREEN_HEIGHT
+        x < -64 ||
+        x > (SCREEN_WIDTH + 64) ||
+        y < -64 ||
+        y > (SCREEN_HEIGHT + 64)
     );
 }
 
@@ -338,20 +341,23 @@ static int16_t enemy_type0_x_for_y(int16_t y)
 
 static void enemy_type2_waypoint(uint8_t variant, uint8_t index, int16_t *x, int16_t *y)
 {
+    const int16_t safe_left = 8;
+    const int16_t safe_right = (int16_t)(SCREEN_WIDTH - ENEMY_SPRITE_SIZE_PX - 8);
+
     static const int16_t left_path[][2] = {
         {-ENEMY_SPRITE_SIZE_PX, -ENEMY_SPRITE_SIZE_PX},
-        {0, HUD_TOP_PX},
-        {SCREEN_WIDTH - ENEMY_SPRITE_SIZE_PX, HUD_TOP_PX},
-        {SCREEN_WIDTH - ENEMY_SPRITE_SIZE_PX, SCREEN_HEIGHT - ENEMY_SPRITE_SIZE_PX},
-        {0, SCREEN_HEIGHT - ENEMY_SPRITE_SIZE_PX},
+        {8, HUD_TOP_PX},
+        {SCREEN_WIDTH - ENEMY_SPRITE_SIZE_PX - 8, HUD_TOP_PX},
+        {SCREEN_WIDTH - ENEMY_SPRITE_SIZE_PX - 8, SCREEN_HEIGHT - ENEMY_SPRITE_SIZE_PX},
+        {8, SCREEN_HEIGHT - ENEMY_SPRITE_SIZE_PX},
         {-ENEMY_SPRITE_SIZE_PX, -ENEMY_SPRITE_SIZE_PX},
     };
     static const int16_t right_path[][2] = {
         {SCREEN_WIDTH, -ENEMY_SPRITE_SIZE_PX},
-        {SCREEN_WIDTH - ENEMY_SPRITE_SIZE_PX, HUD_TOP_PX},
-        {0, HUD_TOP_PX},
-        {0, SCREEN_HEIGHT - ENEMY_SPRITE_SIZE_PX},
-        {SCREEN_WIDTH - ENEMY_SPRITE_SIZE_PX, SCREEN_HEIGHT - ENEMY_SPRITE_SIZE_PX},
+        {SCREEN_WIDTH - ENEMY_SPRITE_SIZE_PX - 8, HUD_TOP_PX},
+        {8, HUD_TOP_PX},
+        {8, SCREEN_HEIGHT - ENEMY_SPRITE_SIZE_PX},
+        {SCREEN_WIDTH - ENEMY_SPRITE_SIZE_PX - 8, SCREEN_HEIGHT - ENEMY_SPRITE_SIZE_PX},
         {SCREEN_WIDTH, -ENEMY_SPRITE_SIZE_PX},
     };
 
@@ -361,6 +367,13 @@ static void enemy_type2_waypoint(uint8_t variant, uint8_t index, int16_t *x, int
     } else {
         *x = right_path[index][0];
         *y = right_path[index][1];
+    }
+
+    if (*x < safe_left && *x >= 0) {
+        *x = safe_left;
+    }
+    if (*x > safe_right && *x <= (SCREEN_WIDTH - ENEMY_SPRITE_SIZE_PX)) {
+        *x = safe_right;
     }
 }
 
@@ -377,6 +390,7 @@ static void enemy_prepare_wave(void)
         case 5: {
             int16_t formation_width = (int16_t)(ENEMY_SPRITE_SIZE_PX + ((ENEMY_WAVE_SIZE - 1) * TYPE5_FORMATION_SPACING_X));
             formation_anchor_y_q8 = TO_Q8(TYPE5_FORMATION_Y);
+            formation_step_down_remaining_q8 = 0;
             if (wave_variant == 0) {
                 formation_anchor_x_q8 = TO_Q8(-formation_width);
                 formation_vx_q8 = ENEMY_SLOW_SPEED_Q8;
@@ -409,12 +423,30 @@ static void spawn_enemy(uint8_t slot)
 
         case 1:
             enemies[slot].phase = TYPE1_PHASE_RISE;
-            enemies[slot].home_x = (int16_t)(40 + (slot * 52));
-            if (enemies[slot].home_x > (SCREEN_WIDTH - ENEMY_SPRITE_SIZE_PX - 16)) {
-                enemies[slot].home_x = (int16_t)(SCREEN_WIDTH - ENEMY_SPRITE_SIZE_PX - 16);
+            switch (slot) {
+                case 0:
+                    enemies[slot].home_x = 56;
+                    enemies[slot].target_y = (int16_t)(TYPE1_MIDPOINT_Y - 24);
+                    break;
+                case 1:
+                    enemies[slot].home_x = (int16_t)(SCREEN_WIDTH - ENEMY_SPRITE_SIZE_PX - 56);
+                    enemies[slot].target_y = (int16_t)(TYPE1_MIDPOINT_Y - 24);
+                    break;
+                case 2:
+                    enemies[slot].home_x = (int16_t)((SCREEN_WIDTH - ENEMY_SPRITE_SIZE_PX) / 2);
+                    enemies[slot].target_y = TYPE1_MIDPOINT_Y;
+                    break;
+                case 3:
+                    enemies[slot].home_x = 96;
+                    enemies[slot].target_y = (int16_t)(TYPE1_MIDPOINT_Y + 24);
+                    break;
+                default:
+                    enemies[slot].home_x = (int16_t)(SCREEN_WIDTH - ENEMY_SPRITE_SIZE_PX - 96);
+                    enemies[slot].target_y = (int16_t)(TYPE1_MIDPOINT_Y + 24);
+                    break;
             }
             enemies[slot].x_q8 = TO_Q8(enemies[slot].home_x);
-            enemies[slot].y_q8 = TO_Q8((int16_t)(SCREEN_HEIGHT + (slot * 20)));
+            enemies[slot].y_q8 = TO_Q8((int16_t)(SCREEN_HEIGHT + ENEMY_SPRITE_SIZE_PX));
             enemies[slot].shots_remaining = 3;
             enemies[slot].fire_timer = (uint16_t)(4 + slot);
             break;
@@ -431,10 +463,10 @@ static void spawn_enemy(uint8_t slot)
         case 3:
             enemies[slot].phase = TYPE3_PHASE_MOVE;
             enemies[slot].x_q8 = TO_Q8(enemy_rand_range(24, (int16_t)(SCREEN_WIDTH - ENEMY_SPRITE_SIZE_PX - 24)));
-            enemies[slot].y_q8 = TO_Q8((int16_t)(-ENEMY_SPRITE_SIZE_PX - (slot * 10)));
+            enemies[slot].y_q8 = TO_Q8((int16_t)(-ENEMY_SPRITE_SIZE_PX));
             enemies[slot].target_x = enemy_rand_range(32, (int16_t)(SCREEN_WIDTH - ENEMY_SPRITE_SIZE_PX - 32));
             enemies[slot].target_y = enemy_rand_range(TYPE3_MIN_TARGET_Y, TYPE3_MAX_TARGET_Y);
-            enemies[slot].timer = 72;
+            enemies[slot].timer = 180;
             enemies[slot].fire_timer = 12;
             enemies[slot].spiral_step = (uint8_t)(slot * 2);
             break;
@@ -442,7 +474,7 @@ static void spawn_enemy(uint8_t slot)
         case 4:
             enemies[slot].phase = TYPE4_PHASE_DESCEND;
             enemies[slot].x_q8 = TO_Q8(enemy_rand_range(24, (int16_t)(SCREEN_WIDTH - ENEMY_SPRITE_SIZE_PX - 24)));
-            enemies[slot].y_q8 = TO_Q8((int16_t)(-ENEMY_SPRITE_SIZE_PX - (slot * 8)));
+            enemies[slot].y_q8 = TO_Q8((int16_t)(-ENEMY_SPRITE_SIZE_PX));
             enemies[slot].timer = (uint16_t)(36 + (slot * 12));
             break;
 
@@ -457,7 +489,7 @@ static void spawn_enemy(uint8_t slot)
         case 6:
             enemies[slot].phase = TYPE6_PHASE_CHASE;
             enemies[slot].x_q8 = TO_Q8(enemy_rand_range(24, (int16_t)(SCREEN_WIDTH - ENEMY_SPRITE_SIZE_PX - 24)));
-            enemies[slot].y_q8 = TO_Q8((int16_t)(-ENEMY_SPRITE_SIZE_PX - (slot * 8)));
+            enemies[slot].y_q8 = TO_Q8((int16_t)(-ENEMY_SPRITE_SIZE_PX));
             break;
 
         default:
@@ -515,8 +547,8 @@ static void update_pattern1(uint8_t slot)
 {
     if (enemies[slot].phase == TYPE1_PHASE_RISE) {
         enemies[slot].y_q8 -= ENEMY_SLOW_SPEED_Q8;
-        if (FROM_Q8(enemies[slot].y_q8) <= TYPE1_MIDPOINT_Y) {
-            enemies[slot].y_q8 = TO_Q8(TYPE1_MIDPOINT_Y);
+        if (FROM_Q8(enemies[slot].y_q8) <= enemies[slot].target_y) {
+            enemies[slot].y_q8 = TO_Q8(enemies[slot].target_y);
             enemies[slot].phase = TYPE1_PHASE_ATTACK;
             enemies[slot].timer = 54;
         }
@@ -641,11 +673,20 @@ static void update_pattern5_anchor(void)
     if (left <= 8) {
         formation_anchor_x_q8 = TO_Q8(8);
         formation_vx_q8 = ENEMY_SLOW_SPEED_Q8;
-        formation_anchor_y_q8 += TO_Q8(12);
+        formation_step_down_remaining_q8 += TYPE5_STEP_DOWN_Q8;
     } else if (right >= (SCREEN_WIDTH - 8)) {
         formation_anchor_x_q8 = TO_Q8((SCREEN_WIDTH - 8) - formation_width);
         formation_vx_q8 = (int16_t)-ENEMY_SLOW_SPEED_Q8;
-        formation_anchor_y_q8 += TO_Q8(12);
+        formation_step_down_remaining_q8 += TYPE5_STEP_DOWN_Q8;
+    }
+
+    if (formation_step_down_remaining_q8 > 0) {
+        int16_t step_q8 = TYPE5_STEP_DOWN_SPEED_Q8;
+        if (formation_step_down_remaining_q8 < step_q8) {
+            step_q8 = (int16_t)formation_step_down_remaining_q8;
+        }
+        formation_anchor_y_q8 += step_q8;
+        formation_step_down_remaining_q8 -= step_q8;
     }
 }
 
