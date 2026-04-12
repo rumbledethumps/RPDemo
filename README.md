@@ -284,8 +284,9 @@ int main(void)
     return 0;
 }
 ```
-
 At this point, if you build and run the code, you should see your player sprite displayed in the center of the screen!  Congratulations, you have successfully loaded a sprite into XRAM and drawn it to the screen using Mode 5!  In the next section, we will start adding some interactivity and movement to our sprite.
+
+![First Milestone](Screenshots/Screenshot_001.png)
 
 ## Input System.
 
