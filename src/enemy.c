@@ -1,5 +1,6 @@
 #include <stdint.h>
 #include <stdbool.h>
+#include <stddef.h>
 
 #include "constants.h"
 #include "enemy.h"
@@ -38,8 +39,15 @@
 #define TYPE6_PHASE_CHASE 0
 
 #define TYPE1_MIDPOINT_Y   (SCREEN_HEIGHT / 2)
+#define TYPE1_SHOTS_PER_ENEMY 6
+#define TYPE1_FIRE_INTERVAL_FRAMES 3
+#define TYPE0_INTER_SPAWN_FRAMES 10
 #define TYPE3_MIN_TARGET_Y (HUD_TOP_PX + 40)
 #define TYPE3_MAX_TARGET_Y 120
+#define TYPE3_ATTACK_DURATION_FRAMES 480
+#define TYPE3_FAN_FIRE_INTERVAL 3
+#define TYPE6_DETONATE_DIST_X 40
+#define TYPE6_DETONATE_DIST_Y 40
 
 #define TYPE5_FORMATION_SPACING_X 28
 #define TYPE5_FORMATION_Y        (HUD_TOP_PX + 24)
@@ -250,6 +258,30 @@ static bool enemy_fire_aimed(uint8_t slot, int16_t speed_q8)
     return projectile_fire_enemy(bullet_x, bullet_y, vx_q8, vy_q8, ENEMY_PROJECTILE_FRAME);
 }
 
+static bool enemy_fire_aimed_y_offset(uint8_t slot, int16_t speed_q8, int16_t target_y_offset)
+{
+    int16_t bullet_x;
+    int16_t bullet_y;
+    int16_t player_x;
+    int16_t player_y;
+    int16_t vx_q8;
+    int16_t vy_q8;
+
+    enemy_get_bullet_origin(slot, &bullet_x, &bullet_y);
+    player_controller_get_center_position(&player_x, &player_y);
+    enemy_compute_aim_velocity(
+        bullet_x,
+        bullet_y,
+        player_x,
+        (int16_t)(player_y + target_y_offset),
+        speed_q8,
+        &vx_q8,
+        &vy_q8
+    );
+
+    return projectile_fire_enemy(bullet_x, bullet_y, vx_q8, vy_q8, ENEMY_PROJECTILE_FRAME);
+}
+
 static bool enemy_fire_directional(uint8_t slot, int8_t dir_x, int8_t dir_y, int16_t speed_q8)
 {
     int16_t bullet_x;
@@ -265,6 +297,25 @@ static void enemy_fire_barrage(uint8_t slot)
 {
     for (uint8_t i = 0; i < 8; ++i) {
         enemy_fire_directional(slot, radial_dirs[i][0], radial_dirs[i][1], BULLET_MEDIUM_SPEED_Q8);
+    }
+}
+
+static void enemy_fire_big_barrage(uint8_t slot)
+{
+    for (uint8_t i = 0; i < 16; ++i) {
+        enemy_fire_directional(slot, spiral_dirs[i][0], spiral_dirs[i][1], BULLET_MEDIUM_SPEED_Q8);
+    }
+    for (uint8_t i = 0; i < 8; ++i) {
+        enemy_fire_directional(slot, radial_dirs[i][0], radial_dirs[i][1], BULLET_FAST_SPEED_Q8);
+    }
+}
+
+static void enemy_fire_player_fan(uint8_t slot, int16_t speed_q8)
+{
+    static const int16_t y_offsets[] = {-72, -48, -24, 0, 24, 48, 72};
+
+    for (uint8_t i = 0; i < (uint8_t)(sizeof(y_offsets) / sizeof(y_offsets[0])); ++i) {
+        enemy_fire_aimed_y_offset(slot, speed_q8, y_offsets[i]);
     }
 }
 
@@ -406,6 +457,14 @@ static void enemy_prepare_wave(void)
     }
 }
 
+static uint16_t enemy_get_inter_spawn_frames_for_wave(void)
+{
+    if (wave_type == 0) {
+        return TYPE0_INTER_SPAWN_FRAMES;
+    }
+    return ENEMY_INTER_SPAWN_FRAMES;
+}
+
 static void spawn_enemy(uint8_t slot)
 {
     int16_t start_x;
@@ -447,7 +506,7 @@ static void spawn_enemy(uint8_t slot)
             }
             enemies[slot].x_q8 = TO_Q8(enemies[slot].home_x);
             enemies[slot].y_q8 = TO_Q8((int16_t)(SCREEN_HEIGHT + ENEMY_SPRITE_SIZE_PX));
-            enemies[slot].shots_remaining = 3;
+            enemies[slot].shots_remaining = TYPE1_SHOTS_PER_ENEMY;
             enemies[slot].fire_timer = (uint16_t)(4 + slot);
             break;
 
@@ -464,10 +523,19 @@ static void spawn_enemy(uint8_t slot)
             enemies[slot].phase = TYPE3_PHASE_MOVE;
             enemies[slot].x_q8 = TO_Q8(enemy_rand_range(24, (int16_t)(SCREEN_WIDTH - ENEMY_SPRITE_SIZE_PX - 24)));
             enemies[slot].y_q8 = TO_Q8((int16_t)(-ENEMY_SPRITE_SIZE_PX));
-            enemies[slot].target_x = enemy_rand_range(32, (int16_t)(SCREEN_WIDTH - ENEMY_SPRITE_SIZE_PX - 32));
-            enemies[slot].target_y = enemy_rand_range(TYPE3_MIN_TARGET_Y, TYPE3_MAX_TARGET_Y);
-            enemies[slot].timer = 180;
-            enemies[slot].fire_timer = 12;
+            if (wave_variant == 0) {
+                static const int16_t target_xs[ENEMY_WAVE_SIZE] = {44, 104, 152, 208, 264};
+                static const int16_t target_ys[ENEMY_WAVE_SIZE] = {64, 84, 72, 88, 68};
+                enemies[slot].target_x = target_xs[slot];
+                enemies[slot].target_y = target_ys[slot];
+            } else {
+                static const int16_t target_xs[ENEMY_WAVE_SIZE] = {60, 116, 168, 220, 276};
+                static const int16_t target_ys[ENEMY_WAVE_SIZE] = {88, 70, 92, 74, 86};
+                enemies[slot].target_x = target_xs[slot];
+                enemies[slot].target_y = target_ys[slot];
+            }
+            enemies[slot].timer = TYPE3_ATTACK_DURATION_FRAMES;
+            enemies[slot].fire_timer = (uint16_t)(4 + slot);
             enemies[slot].spiral_step = (uint8_t)(slot * 2);
             break;
 
@@ -560,10 +628,12 @@ static void update_pattern1(uint8_t slot)
             enemies[slot].fire_timer--;
         }
         if (enemies[slot].shots_remaining > 0 && enemies[slot].fire_timer == 0) {
-            if (enemy_fire_aimed(slot, BULLET_FAST_SPEED_Q8)) {
+            static const int16_t aim_pattern_y_offsets[TYPE1_SHOTS_PER_ENEMY] = {0, -12, 0, 12, 0, -6};
+            uint8_t shot_index = (uint8_t)(TYPE1_SHOTS_PER_ENEMY - enemies[slot].shots_remaining);
+            if (enemy_fire_aimed_y_offset(slot, BULLET_MEDIUM_SPEED_Q8, aim_pattern_y_offsets[shot_index])) {
                 enemies[slot].shots_remaining--;
             }
-            enemies[slot].fire_timer = 6;
+            enemies[slot].fire_timer = TYPE1_FIRE_INTERVAL_FRAMES;
         }
         if (enemies[slot].timer == 0) {
             enemies[slot].phase = TYPE1_PHASE_EXIT;
@@ -614,10 +684,8 @@ static void update_pattern3(uint8_t slot)
             enemies[slot].fire_timer--;
         }
         if (enemies[slot].fire_timer == 0) {
-            uint8_t dir = enemies[slot].spiral_step & 0x0Fu;
-            enemy_fire_directional(slot, spiral_dirs[dir][0], spiral_dirs[dir][1], BULLET_SLOW_SPEED_Q8);
-            enemies[slot].spiral_step = (uint8_t)((enemies[slot].spiral_step + 1) & 0x0Fu);
-            enemies[slot].fire_timer = 10;
+            enemy_fire_player_fan(slot, BULLET_MEDIUM_SPEED_Q8);
+            enemies[slot].fire_timer = TYPE3_FAN_FIRE_INTERVAL;
         }
         if (enemies[slot].timer == 0) {
             enemies[slot].phase = TYPE3_PHASE_EXIT;
@@ -640,7 +708,8 @@ static void update_pattern4(uint8_t slot)
             int16_t vx_q8;
             int16_t vy_q8;
 
-            player_controller_get_center_position(&player_x, &player_y);
+            // Aim at player top-left for accurate sprite-corner targeting.
+            player_controller_get_position(&player_x, &player_y);
             enemy_compute_aim_velocity(
                 FROM_Q8(enemies[slot].x_q8),
                 FROM_Q8(enemies[slot].y_q8),
@@ -713,12 +782,14 @@ static void update_pattern6(uint8_t slot)
 {
     int16_t player_x;
     int16_t player_y;
+    int16_t player_top_y;
     int16_t vx_q8;
     int16_t vy_q8;
     int16_t enemy_x;
     int16_t enemy_y;
 
     player_controller_get_center_position(&player_x, &player_y);
+    player_controller_get_position(NULL, &player_top_y);
     enemy_x = FROM_Q8(enemies[slot].x_q8);
     enemy_y = FROM_Q8(enemies[slot].y_q8);
 
@@ -729,9 +800,10 @@ static void update_pattern6(uint8_t slot)
     enemy_x = FROM_Q8(enemies[slot].x_q8);
     enemy_y = FROM_Q8(enemies[slot].y_q8);
 
-    if (enemy_abs16((int16_t)(enemy_x - player_x)) <= 24 &&
-        enemy_abs16((int16_t)(enemy_y - player_y)) <= 24) {
-        enemy_fire_barrage(slot);
+    if ((enemy_abs16((int16_t)(enemy_x - player_x)) <= TYPE6_DETONATE_DIST_X &&
+         enemy_abs16((int16_t)(enemy_y - player_y)) <= TYPE6_DETONATE_DIST_Y) ||
+        enemy_y >= player_top_y) {
+        enemy_fire_big_barrage(slot);
         enemy_deactivate(slot);
     }
 }
@@ -840,7 +912,7 @@ void enemy_update(void)
                 if (wave_spawned >= ENEMY_WAVE_SIZE) {
                     wave_state = WAVE_STATE_CLEARING;
                 } else {
-                    wave_timer = ENEMY_INTER_SPAWN_FRAMES;
+                    wave_timer = enemy_get_inter_spawn_frames_for_wave();
                 }
             }
             break;

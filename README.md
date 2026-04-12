@@ -1413,6 +1413,69 @@ That means:
 
 That keeps the architecture clean while the attack patterns are being designed and tuned.
 
+#### Enemy Tuning Parameters
+
+The quickest way to tune enemy behavior is in `src/enemy.c` and `src/enemy.h`.
+
+Global wave pacing (`src/enemy.h`):
+- `ENEMY_WAVE_SIZE`: number of enemies spawned per wave pattern.
+- `ENEMY_SPAWN_DELAY_FRAMES`: delay before the first wave starts.
+- `ENEMY_INTER_SPAWN_FRAMES`: spacing between enemy spawns inside one wave.
+- `ENEMY_INTER_WAVE_FRAMES`: pause between completed waves.
+
+Shared movement/bullet speed (`src/enemy.c`):
+- `ENEMY_SLOW_SPEED_Q8`, `ENEMY_MEDIUM_SPEED_Q8`, `ENEMY_FAST_SPEED_Q8`, `ENEMY_DIVE_SPEED_Q8`
+- `BULLET_SLOW_SPEED_Q8`, `BULLET_MEDIUM_SPEED_Q8`, `BULLET_FAST_SPEED_Q8`
+
+Index 0 (zig then dive):
+- `ENEMY_ZIG_SPEED` (`src/enemy.h`): horizontal oscillation intensity.
+- `TYPE0_INTER_SPAWN_FRAMES` (`src/enemy.c`): spacing between index-0 enemies as they follow each other in the same path.
+- `wave_type0_shots_remaining` setup in `enemy_prepare_wave()`: number of aimed shots allowed during the zig phase.
+- Dive trigger alignment threshold in `update_pattern0()` (`<= 8` pixels).
+
+Index 1 (rise, hold, tight spread fire, exit):
+- Spawn X and hold Y positions in `spawn_enemy()` case `1` define the X formation.
+- `TYPE1_SHOTS_PER_ENEMY`: total bullets each enemy fires during attack.
+- `timer` in `update_pattern1()`: how long each ship holds in attack phase.
+- `aim_pattern_y_offsets[]` in `update_pattern1()`: sequence of vertical aim offsets (for patterns like at, above, at, below, at).
+- `TYPE1_FIRE_INTERVAL_FRAMES`: cadence between each shot in the quick burst.
+- Shot speed in `update_pattern1()` (`BULLET_MEDIUM_SPEED_Q8`) controls dodge difficulty.
+
+Index 2 (edge path):
+- Corner waypoints in `enemy_type2_waypoint()`.
+- `safe_left` and `safe_right` in `enemy_type2_waypoint()`: left/right screen safety margins.
+- Fire cadence (`fire_timer = 42`) in `update_pattern2()`.
+
+Index 3 (move to attack points, wide player-aimed fan):
+- Predetermined target arrays (`target_xs`, `target_ys`) in `spawn_enemy()` case `3` control where ships park.
+- `TYPE3_ATTACK_DURATION_FRAMES`: how long ships stay at attack points.
+- `TYPE3_FAN_FIRE_INTERVAL`: frames between fan volleys.
+- `enemy_fire_player_fan()`: fires a large-angle spread by aiming several bullets at vertical offsets around the player.
+
+Index 4 (descend then aimed dive):
+- Pre-dive countdown (`timer = 36 + slot*12`) in `spawn_enemy()` case `4` controls progression spacing.
+- Dive speed `ENEMY_DIVE_SPEED_Q8` and aim call in `update_pattern4()`.
+- Dive target currently uses `player_controller_get_position()` (player top-left) to match sprite corner coordinates.
+
+Index 5 (formation sweep + step-down):
+- `TYPE5_FORMATION_SPACING_X`: horizontal spacing between ships.
+- `TYPE5_FORMATION_Y`: starting Y of the formation.
+- `TYPE5_STEP_DOWN_Q8`: total Y increment applied per wall bounce.
+- `TYPE5_STEP_DOWN_SPEED_Q8`: smoothness/speed of the downward transition.
+- Side bounds (`8` and `SCREEN_WIDTH - 8`) in `update_pattern5_anchor()`.
+
+Index 6 (chase then detonate barrage):
+- Chase speed (`ENEMY_MEDIUM_SPEED_Q8`) in `update_pattern6()`.
+- `TYPE6_DETONATE_DIST_X` / `TYPE6_DETONATE_DIST_Y`: proximity needed to trigger radial burst.
+- Vertical fail-safe in `update_pattern6()`: if enemy top goes below player top (`enemy_y >= player_top_y`), it detonates immediately.
+- Explosion size is controlled by `enemy_fire_big_barrage()` (16-way medium ring + 8-way fast ring).
+
+If you want balancing that feels predictable, tune in this order:
+1. `ENEMY_INTER_SPAWN_FRAMES` and `ENEMY_INTER_WAVE_FRAMES`.
+2. Per-pattern attack hold timers (`timer`, `TYPE3_ATTACK_DURATION_FRAMES`).
+3. Bullet cadence values (`fire_timer` resets, `TYPE3_SPIRAL_FIRE_INTERVAL`).
+4. Bullet and movement speeds.
+
 
 
 
