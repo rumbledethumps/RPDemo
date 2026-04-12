@@ -1,5 +1,22 @@
 # RP6502 Game Demo for LLVM-MOS
 
+## Table of Contents
+- [Introduction](#introduction)
+- [Getting Started](#getting-started)
+- [Setting up Graphics](#setting-up-graphics)
+- [Adding a Sprite](#adding-a-sprite)
+- [Input System](#input-system)
+- [Tilemaps and Backgrounds](#tilemaps-and-backgrounds)
+- [Music](#music)
+- [Adding Bullets](#adding-bullets)
+- [Game Play Loop](#game-play-loop)
+
+## Introduction
+
+This is a demo game for the RP6502, built with the LLVM-MOS toolchain.  The game is a simple shoot-em-up where you control a spaceship and shoot down incoming asteroids.  The game features a title screen, a parallax scrolling starfield background, and a player sprite that can move around the screen and shoot projectiles.  This demo is designed to showcase the capabilities of the RP6502 and provide a starting point for developers who want to create their own games for this platform.  The game is built using C and the LLVM-MOS SDK, and it runs on the Picocomputer, which is a modern take on the classic 6502-based home computers of the 1980s.  The Picocomputer features a custom operating system, a powerful graphics system, and support for a wide range of input devices, making it an ideal platform for retro-style games.
+
+## Getting Started
+
 Get started by using the vscode-llvm-mos template from https://github.com/picocomputer/vscode-llvm-mos.  Find the "Use this template" button and follow the instructions to create a new repository.  
 
 Once you have your respository set up, we are going to update CMakeLists.txt to build the demo game.  Update the contents of CMakeLists.txt to have the name of the game you want to make.  In this example, we are going to make a game called RPDemo.  The CMakeLists.txt file should look something like this:
@@ -288,7 +305,7 @@ At this point, if you build and run the code, you should see your player sprite 
 
 ![First Milestone](Screenshots/Screenshot_001.png)
 
-## Input System.
+## Input System
 
 We going to use ```input.c```, ```input.h```, ```player_controller.c```, and ```player_controller.h``` which have been designed to make handling inputs bit easier and also allow for custom key mappings for any gamepad you want to use.  I strongly recommend reading the Picocomputer documentation.  To get started add ```input.c``` and ```player_controller.c``` to CMakeLists.txt and include the headers in main.c.  
 
@@ -936,7 +953,88 @@ void sprite_mode5_init_projectiles(void) {
 }
 ```
 
+With the projectile sprites initialized, we can then create functions to fire projectiles and update their positions on the screen.  We will maintain an array of projectile instances in our game logic, which will track whether each projectile is active and its current position.  When the player fires a projectile, we will activate one of the projectile sprites from our pool and set its position to the player's current position.  We will then update the position of each active projectile in our main game loop, moving them upwards on the screen and deactivating them when they go off-screen.  This allows us to create a simple shooting mechanic for our game using the sprite system.
+
+```c
+#include <stdint.h>
+#include <stdbool.h>
+#include "constants.h"
+#include "projectile.h"
+#include "sprite_mode5.h"
+
+typedef struct {
+    bool    active;
+    int16_t x;
+    int16_t y;
+} Projectile;
+
+static Projectile projectiles[MAX_PROJECTILES];
+
+void projectile_init(void)
+{
+    for (uint8_t i = 0; i < MAX_PROJECTILES; i++) {
+        projectiles[i].active = false;
+        projectiles[i].x = -32;
+        projectiles[i].y = -32;
+    }
+    // Hardware slots are already positioned off-screen by sprite_mode5_init_projectiles()
+}
+
+void projectile_fire_player(int16_t x, int16_t y)
+{
+    for (uint8_t i = 0; i < MAX_PLAYER_PROJECTILES; i++) {
+        if (!projectiles[i].active) {
+            projectiles[i].active = true;
+            projectiles[i].x = x;
+            projectiles[i].y = y;
+            sprite_mode5_set_projectile_position(i, x, y);
+            return;
+        }
+    }
+    // All player slots full — no-op
+}
+
+void projectile_update(void)
+{
+    for (uint8_t i = 0; i < MAX_PLAYER_PROJECTILES; i++) {
+        if (!projectiles[i].active) continue;
+
+        projectiles[i].y -= PROJECTILE_SPEED_PX;
+
+        if (projectiles[i].y < HUD_TOP_PX) {
+            // Bullet has left the play area — deactivate
+            projectiles[i].active = false;
+            sprite_mode5_set_projectile_position(i, -32, -32);
+        } else {
+            sprite_mode5_set_projectile_position(i, projectiles[i].x, projectiles[i].y);
+        }
+    }
+}
+```
+
+Our main.c file only needs a few update to add '''#include "projectile.h"''' and call ```projectile_init()``` in ```init_graphics``` and add ```projectile_update()``` to our main loop.  With this code in place, you should now be able to fire projectiles from the player's position and see them move upwards on the screen until they go off-screen and are deactivated.  You can customize the projectile behavior, speed, and appearance by modifying the projectile data and update logic as needed for your game.
+
+```c
+// Main loop
+    while (true) {
+        // 1. SYNC
+        if (RIA.vsync == vsync_last) continue;
+        vsync_last = RIA.vsync;
+
+        // 2. INPUT
+        handle_input();
+
+        // 3. UPDATE
+        music_update();
+        tile_mode2_update_scroll();
+        player_controller_update();
+        projectile_update();
+    }
+```
+
 ## Game Play Loop
+
+Right now our screen is very busy.  We have our title-card, music, flying starfield background, and a player sprite that we can move around.  This is great for testing our systems, but it's not really a game yet.  We need to add some structure to our game by implementing a game loop with different states for the title screen, gameplay, and game over screen.  This will allow us to create a more complete game experience with a clear flow from start to finish.  We can define an enum for our game states and then use a switch statement in our main loop to handle the logic for each state.  This will allow us to show the title screen when the game starts, transition to the gameplay state when the player presses a button, and then show a game over screen when the player loses.  This structure will make it easier to manage the different parts of our game and create a more polished experience for the player.
 
 title screen
 
