@@ -69,6 +69,9 @@ int main(void)
 
         // 3. UPDATE
         music_update();
+        if (game_state_get() == GAME_STATE_TITLE) {
+            tile_mode2_update_title_palette();
+        }
         if (game_state_get() != GAME_STATE_PAUSED) {
             tile_mode2_update_scroll();
         }

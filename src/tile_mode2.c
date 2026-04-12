@@ -28,6 +28,36 @@ static bool warp_tiles_replaced = false;
 #define FG_GAME_SCROLL_SPEED_HALF_PX 2
 #define FG_SLOWDOWN_STEP_HALF_PX 2
 #define FG_SLOWDOWN_STEP_FRAMES 24
+#define TITLE_RAINBOW_STEP_FRAMES 6
+
+#ifndef COLOR_FROM_RGB8
+#define COLOR_FROM_RGB8(r,g,b) (((b>>3)<<11)|((g>>3)<<6)|(r>>3))
+#endif
+
+#ifndef COLOR_ALPHA_MASK
+#define COLOR_ALPHA_MASK (1u<<5)
+#endif
+
+static uint8_t title_palette_tick = 0;
+static uint8_t title_palette_phase = 0;
+
+static const uint16_t title_rainbow_palette[] = {
+    COLOR_FROM_RGB8(255, 0, 0)   | COLOR_ALPHA_MASK,
+    COLOR_FROM_RGB8(255, 128, 0) | COLOR_ALPHA_MASK,
+    COLOR_FROM_RGB8(255, 255, 0) | COLOR_ALPHA_MASK,
+    COLOR_FROM_RGB8(0, 255, 0)   | COLOR_ALPHA_MASK,
+    COLOR_FROM_RGB8(0, 255, 255) | COLOR_ALPHA_MASK,
+    COLOR_FROM_RGB8(0, 0, 255)   | COLOR_ALPHA_MASK,
+    COLOR_FROM_RGB8(255, 0, 255) | COLOR_ALPHA_MASK,
+};
+
+static void tile_mode2_write_hud_palette_entry(uint8_t index, uint16_t color)
+{
+    RIA.addr0 = TILE_HUD_PALETTE_ADDR + ((unsigned)index * 2u);
+    RIA.step0 = 1;
+    RIA.rw0 = color & 0xFF;
+    RIA.rw0 = color >> 8;
+}
 
 static void tile_mode2_write_tile(unsigned tilemap_addr, uint8_t width, uint8_t x, uint8_t y, uint8_t tile_index)
 {
@@ -84,6 +114,8 @@ void tile_mode2_init(void) {
     fg_slowdown_tick = 0;
     gameplay_transition_active = false;
     warp_tiles_replaced = false;
+    title_palette_tick = 0;
+    title_palette_phase = 0;
 
     TILE_BG_CONFIG = PLAYER_CONFIG + sizeof(vga_mode5_sprite_t); // Add after sprite config
 
@@ -170,6 +202,8 @@ void tile_mode2_init(void) {
         RIA.rw0 = tile_hud_palette[i] >> 8;
     }
 
+    tile_mode2_write_hud_palette_entry(2, title_rainbow_palette[0]);
+
     puts("Mode2 tiles ready");
 }
 
@@ -180,6 +214,20 @@ void tile_mode2_start_gameplay_transition(void)
     fg_scroll_target_half = FG_GAME_SCROLL_SPEED_HALF_PX;
     fg_slowdown_tick = 0;
     gameplay_transition_active = true;
+}
+
+void tile_mode2_update_title_palette(void)
+{
+    title_palette_tick = (uint8_t)(title_palette_tick + 1);
+    if (title_palette_tick < TITLE_RAINBOW_STEP_FRAMES) {
+        return;
+    }
+
+    title_palette_tick = 0;
+    title_palette_phase = (uint8_t)((title_palette_phase + 1) %
+        (sizeof(title_rainbow_palette) / sizeof(title_rainbow_palette[0])));
+
+    tile_mode2_write_hud_palette_entry(2, title_rainbow_palette[title_palette_phase]);
 }
 
 void tile_mode2_update_scroll(void) {
