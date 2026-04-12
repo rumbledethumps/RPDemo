@@ -82,7 +82,7 @@ int main(void)
 
 We have added ```vsync_last``` to keep track of the last vsync state.  In our main loop, we check if the current vsync state is the same as the last one, and if it is, we continue to the next iteration of the loop.  This effectively creates a loop that runs once per frame, synced to the vertical refresh of the display.  This is important for ensuring smooth graphics and avoiding screen tearing.
 
-If you build and run this code, you should see a blank screen on your Picocomputer.  This means that we have successfully initialized the graphics system and are running a main loop that is synced to the vertical refresh of the display.  In the next section, we will start drawing some pixels to the screen!  To exit the program hit ```CTRL + ALT + DEL``` or ```ALT + F4``` on the keyboard connected to your Picocomputer.
+If you build and run this code, you should see a blank screen on your Picocomputer.  This means that we have successfully initialized the graphics system and are running a main loop that is synced to the vertical refresh of the display.  In the next section, we will start drawing some pixels to the screen!  To exit the program hit ```ALT + F4``` on the keyboard connected to your Picocomputer.
 
 ## Adding a Sprite
 
@@ -882,12 +882,14 @@ sprite_mode5_update_engine(bool moving_down)
 ```
 This function creates a simple animation effect for the player's engine by changing the color of a specific palette entry over time.  When the player is moving down, we reset the animation and set the engine color to black.  When the player is not moving down, we cycle through a set of colors to create a glowing effect for the engine.  This is done by updating the palette entry in XRAM that the sprite uses for the engine glow.  This allows us to create a dynamic visual effect without needing to change the sprite data itself, which can save memory and allow for more complex animations.
 
+Once you have added this code, you should see the player sprite change its frame based on movement and the engine glow animating when the player is moving.  You can customize the animation logic and palette effects to create different visual styles for your game.
+
 
 ## Adding Bullets 
 
 We can add a new asset for our projectile sprite data, and then set up a new sprite configuration in XRAM for the projectiles.  We can then create a pool of projectile sprites that we can activate and deactivate as needed to create bullets that the player can shoot.  This is a common technique in game development called object pooling, which allows us to reuse a fixed number of sprite instances for our bullets without needing to constantly create and destroy sprites, which can be expensive in terms of performance.
 ```c
-rp6502_asset(RPDemo 0x11EF0 images/Projectiles_4bpp.bin
+rp6502_asset(RPDemo 0x13470 images/Projectiles_4bpp.bin)
 ```
 
 Here is the layout for the projectile sprite data and configuration in XRAM:
@@ -934,6 +936,13 @@ void sprite_mode5_init_projectiles(void) {
 }
 ```
 
+## Game Play Loop
+
+title screen
+
+game play
+
+game over
 
 
 
