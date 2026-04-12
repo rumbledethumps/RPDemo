@@ -1036,11 +1036,43 @@ Our main.c file only needs a few update to add '''#include "projectile.h"''' and
 
 Right now our screen is very busy.  We have our title-card, music, flying starfield background, and a player sprite that we can move around.  This is great for testing our systems, but it's not really a game yet.  We need to add some structure to our game by implementing a game loop with different states for the title screen, gameplay, and game over screen.  This will allow us to create a more complete game experience with a clear flow from start to finish.  We can define an enum for our game states and then use a switch statement in our main loop to handle the logic for each state.  This will allow us to show the title screen when the game starts, transition to the gameplay state when the player presses a button, and then show a game over screen when the player loses.  This structure will make it easier to manage the different parts of our game and create a more polished experience for the player.
 
-title screen
+The example below shows how we can implement a simple game loop with a title screen and gameplay state.  We check for input to transition from the title screen to the gameplay state, and we update our music, tilemaps, player, and projectiles only when we are in the appropriate game state.  This allows us to create a more structured game experience with different states for different parts of the game.  We can change music tracks, update the title screen palette, and control the player and projectiles based on the current game state.
+```c
+// Main loop
+    while (true) {
+        // 1. SYNC
+        if (RIA.vsync == vsync_last) continue;
+        vsync_last = RIA.vsync;
 
-game play
+        // 2. INPUT
+        handle_input();
 
-game over
+        {
+            game_transition_t transition = game_state_handle_start_button(
+                is_action_pressed(0, ACTION_BTN_START)
+            );
+
+            if (transition == GAME_TRANSITION_START_GAME) {
+                tile_mode2_start_gameplay_transition();
+                music_set_track("music/RESOURCE.005.vgm");
+            }
+        }
+
+        // 3. UPDATE
+        music_update();
+        if (game_state_get() == GAME_STATE_TITLE) {
+            tile_mode2_update_title_palette();
+        }
+        if (game_state_get() != GAME_STATE_PAUSED) {
+            tile_mode2_update_scroll();
+        }
+        if (game_state_get() == GAME_STATE_PLAYING) {
+            player_controller_update();
+            projectile_update();
+        }
+    }
+  ```
+
 
 
 
