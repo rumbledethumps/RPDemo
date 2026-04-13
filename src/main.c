@@ -393,8 +393,6 @@ static void start_new_run(void)
     tile_mode2_set_score(0);
     tile_mode2_set_multiplier(score_get_multiplier());
     tile_mode2_set_paused_banner(false);
-    tile_mode2_set_level_banner(current_level, true);
-    level_banner_visible = true;
     tile_mode2_set_level_complete_banner(false);
     tile_mode2_set_bonus_continue_prompt(false);
     tile_mode2_set_health(PLAYER_MAX_HEALTH);
@@ -403,6 +401,8 @@ static void start_new_run(void)
     sprite_mode5_show_player();
     tile_mode2_clear_level_bonus();
     tile_mode2_start_gameplay_transition();
+    tile_mode2_set_level_banner(current_level, true);
+    level_banner_visible = true;
     music_set_track(track_for_level(current_level));
     game_over_letters_started = false;
     game_over_scroll_started = false;
@@ -423,8 +423,6 @@ static void start_next_level(void)
     tile_mode2_set_score(score_get());
     tile_mode2_set_multiplier(score_get_multiplier());
     tile_mode2_set_paused_banner(false);
-    tile_mode2_set_level_banner(current_level, true);
-    level_banner_visible = true;
     tile_mode2_set_level_complete_banner(false);
     tile_mode2_set_bonus_continue_prompt(false);
     tile_mode2_set_health(player_controller_get_health());
@@ -433,6 +431,8 @@ static void start_next_level(void)
     sprite_mode5_show_player();
     tile_mode2_clear_level_bonus();
     tile_mode2_start_gameplay_transition();
+    tile_mode2_set_level_banner(current_level, true);
+    level_banner_visible = true;
     music_set_track(track_for_level(current_level));
     reset_level_bonus_sequence();
     player_script = PLAYER_SCRIPT_FROM_BONUS;
@@ -593,6 +593,9 @@ int main(void)
             sprite_mode5_set_frame(0);
             sprite_mode5_update_engine(false);
             update_level_bonus_sequence();
+            if (level_bonus_complete) {
+                tile_mode2_update_title_palette();
+            }
         } else if (game_state_get() == GAME_STATE_GAME_OVER) {
             player_controller_update();
 
