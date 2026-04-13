@@ -54,9 +54,13 @@
 #define AIM_MAX_LEAD_PER_AXIS 6
 
 #define TYPE5_FORMATION_SPACING_X 28
+#define TYPE5_FORMATION_SPACING_Y 18
+#define TYPE5_MAX_COLUMNS 5
 #define TYPE5_FORMATION_Y        (HUD_TOP_PX + 24)
 #define TYPE5_STEP_DOWN_Q8       TO_Q8(12)
 #define TYPE5_STEP_DOWN_SPEED_Q8 ENEMY_SLOW_SPEED_Q8
+#define TYPE5_PHASE_FORM_IN      0
+#define TYPE5_PHASE_FORMED       1
 
 #define GAME_OVER_LETTER_COUNT 8
 #define GAME_OVER_FIRST_FRAME 7
@@ -116,6 +120,10 @@ static int32_t formation_anchor_x_q8;
 static int32_t formation_anchor_y_q8;
 static int16_t formation_vx_q8;
 static int32_t formation_step_down_remaining_q8;
+static uint8_t formation_columns;
+static uint8_t type5_spawn_count;
+static uint8_t type5_spawned_count;
+static bool formation_started;
 static int16_t tracked_player_x;
 static int16_t tracked_player_y;
 static int16_t tracked_player_vx;
@@ -691,6 +699,37 @@ static void enemy_prepare_wave(void)
 {
     enemy_build_subwave_composition();
     wave_variant = (uint8_t)(enemy_rand() & 1u);
+    int16_t formation_width;
+
+    type5_spawn_count = 0;
+    type5_spawned_count = 0;
+    formation_started = false;
+
+    for (uint8_t i = 0; i < wave_spawn_count; ++i) {
+        if (wave_spawn_types[i] == 5) {
+            type5_spawn_count++;
+        }
+    }
+
+    if (type5_spawn_count > 0) {
+        formation_columns = type5_spawn_count;
+        if (formation_columns > TYPE5_MAX_COLUMNS) {
+            formation_columns = TYPE5_MAX_COLUMNS;
+        }
+        if (formation_columns == 0) {
+            formation_columns = 1;
+        }
+
+        formation_width = (int16_t)(ENEMY_SPRITE_SIZE_PX + ((formation_columns - 1) * TYPE5_FORMATION_SPACING_X));
+        formation_anchor_x_q8 = TO_Q8((int16_t)((SCREEN_WIDTH - formation_width) / 2));
+        formation_anchor_y_q8 = TO_Q8(TYPE5_FORMATION_Y);
+        formation_step_down_remaining_q8 = 0;
+        if (wave_variant == 0) {
+            formation_vx_q8 = ENEMY_SLOW_SPEED_Q8;
+        } else {
+            formation_vx_q8 = (int16_t)-ENEMY_SLOW_SPEED_Q8;
+        }
+    }
 
     switch (wave_type) {
         case 0:
@@ -698,19 +737,8 @@ static void enemy_prepare_wave(void)
             wave_type0_shots_remaining = (uint8_t)(1u + (enemy_rand() & 1u));
             break;
 
-        case 5: {
-            int16_t formation_width = (int16_t)(ENEMY_SPRITE_SIZE_PX + ((wave_spawn_count - 1) * TYPE5_FORMATION_SPACING_X));
-            formation_anchor_y_q8 = TO_Q8(TYPE5_FORMATION_Y);
-            formation_step_down_remaining_q8 = 0;
-            if (wave_variant == 0) {
-                formation_anchor_x_q8 = TO_Q8((int16_t)(-formation_width - ENEMY_SPRITE_SIZE_PX));
-                formation_vx_q8 = ENEMY_SLOW_SPEED_Q8;
-            } else {
-                formation_anchor_x_q8 = TO_Q8((int16_t)(SCREEN_WIDTH + ENEMY_SPRITE_SIZE_PX));
-                formation_vx_q8 = (int16_t)-ENEMY_SLOW_SPEED_Q8;
-            }
+        case 5:
             break;
-        }
 
         default:
             break;
@@ -721,6 +749,9 @@ static uint16_t enemy_get_inter_spawn_frames_for_wave(void)
 {
     if (wave_type == 0) {
         return TYPE0_INTER_SPAWN_FRAMES;
+    }
+    if (wave_type == 5) {
+        return 0;
     }
     return ENEMY_INTER_SPAWN_FRAMES;
 }
@@ -817,10 +848,17 @@ static void spawn_enemy(uint8_t slot, uint8_t enemy_type)
             break;
 
         case 5:
-            enemies[slot].home_x = (int16_t)(slot * TYPE5_FORMATION_SPACING_X);
-            enemies[slot].home_y = 0;
-            enemies[slot].x_q8 = formation_anchor_x_q8 + TO_Q8(enemies[slot].home_x);
-            enemies[slot].y_q8 = formation_anchor_y_q8;
+            lane = (uint8_t)(type5_spawned_count % formation_columns);
+            rank = (uint8_t)(type5_spawned_count / formation_columns);
+            type5_spawned_count++;
+
+            enemies[slot].phase = TYPE5_PHASE_FORM_IN;
+            enemies[slot].home_x = (int16_t)(lane * TYPE5_FORMATION_SPACING_X);
+            enemies[slot].home_y = (int16_t)(rank * TYPE5_FORMATION_SPACING_Y);
+            enemies[slot].target_x = (int16_t)(FROM_Q8(formation_anchor_x_q8) + enemies[slot].home_x);
+            enemies[slot].target_y = (int16_t)(TYPE5_FORMATION_Y + enemies[slot].home_y);
+            enemies[slot].x_q8 = TO_Q8(enemies[slot].target_x);
+            enemies[slot].y_q8 = TO_Q8((int16_t)(-ENEMY_SPRITE_SIZE_PX - (rank * 12)));
             enemies[slot].fire_timer = (uint16_t)(30 + (slot * 10));
             break;
 
@@ -1004,7 +1042,7 @@ static void update_pattern4(uint8_t slot)
 
 static void update_pattern5_anchor(void)
 {
-    int16_t formation_width = (int16_t)(ENEMY_SPRITE_SIZE_PX + ((wave_spawn_count - 1) * TYPE5_FORMATION_SPACING_X));
+    int16_t formation_width = (int16_t)(ENEMY_SPRITE_SIZE_PX + ((formation_columns - 1) * TYPE5_FORMATION_SPACING_X));
     int16_t left;
     int16_t right;
 
@@ -1034,8 +1072,14 @@ static void update_pattern5_anchor(void)
 
 static void update_pattern5(uint8_t slot)
 {
-    enemies[slot].x_q8 = formation_anchor_x_q8 + TO_Q8(enemies[slot].home_x);
-    enemies[slot].y_q8 = formation_anchor_y_q8 + TO_Q8(enemies[slot].home_y);
+    if (enemies[slot].phase == TYPE5_PHASE_FORM_IN) {
+        if (enemy_try_move_towards(slot, enemies[slot].target_x, enemies[slot].target_y, ENEMY_MEDIUM_SPEED_Q8)) {
+            enemies[slot].phase = TYPE5_PHASE_FORMED;
+        }
+    } else if (formation_started) {
+        enemies[slot].x_q8 = formation_anchor_x_q8 + TO_Q8(enemies[slot].home_x);
+        enemies[slot].y_q8 = formation_anchor_y_q8 + TO_Q8(enemies[slot].home_y);
+    }
 
     if (FROM_Q8(enemies[slot].y_q8) >= SCREEN_HEIGHT) {
         enemy_deactivate(slot);
@@ -1045,10 +1089,25 @@ static void update_pattern5(uint8_t slot)
     if (enemies[slot].fire_timer > 0) {
         enemies[slot].fire_timer--;
     }
-    if (FROM_Q8(enemies[slot].y_q8) >= HUD_TOP_PX && enemies[slot].fire_timer == 0) {
+    if (formation_started && FROM_Q8(enemies[slot].y_q8) >= HUD_TOP_PX && enemies[slot].fire_timer == 0) {
         enemy_fire_aimed(slot, BULLET_MEDIUM_SPEED_Q8);
         enemies[slot].fire_timer = (uint16_t)(52 + (slot * 6));
     }
+}
+
+static bool enemy_type5_formation_ready(void)
+{
+    for (uint8_t i = 0; i < wave_spawn_count; ++i) {
+        if (!enemies[i].active) {
+            continue;
+        }
+
+        if (enemies[i].type == 5 && enemies[i].phase != TYPE5_PHASE_FORMED) {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 static void update_pattern6(uint8_t slot)
@@ -1129,6 +1188,10 @@ void enemy_init(void)
     formation_anchor_x_q8 = 0;
     formation_anchor_y_q8 = 0;
     formation_vx_q8 = 0;
+    formation_columns = TYPE5_MAX_COLUMNS;
+    type5_spawn_count = 0;
+    type5_spawned_count = 0;
+    formation_started = false;
     tracked_player_x = 0;
     tracked_player_y = 0;
     tracked_player_vx = 0;
@@ -1177,6 +1240,9 @@ void enemy_start_level(uint8_t level_index)
     wave_spawned = 0;
     wave_spawn_count = 0;
     wave_timer = ENEMY_SPAWN_DELAY_FRAMES;
+    type5_spawn_count = 0;
+    type5_spawned_count = 0;
+    formation_started = false;
 
     for (uint8_t i = 0; i < MAX_ENEMIES; ++i) {
         enemy_deactivate(i);
@@ -1210,8 +1276,14 @@ void enemy_update(void)
 
     enemy_update_player_tracking();
 
-    if (wave_type == 5 && !wave_slots_clear()) {
-        update_pattern5_anchor();
+    if (type5_spawn_count > 0 && wave_state == WAVE_STATE_CLEARING && !wave_slots_clear()) {
+        if (!formation_started && enemy_type5_formation_ready()) {
+            formation_started = true;
+        }
+
+        if (formation_started) {
+            update_pattern5_anchor();
+        }
     }
 
     for (uint8_t i = 0; i < MAX_ENEMIES; i++) {
@@ -1259,13 +1331,21 @@ void enemy_update(void)
             if (wave_timer > 0) {
                 wave_timer--;
             } else {
-                spawn_enemy(wave_spawned, wave_spawn_types[wave_spawned]);
-                wave_spawned++;
-
-                if (wave_spawned >= wave_spawn_count) {
+                if (wave_type == 5) {
+                    while (wave_spawned < wave_spawn_count) {
+                        spawn_enemy(wave_spawned, wave_spawn_types[wave_spawned]);
+                        wave_spawned++;
+                    }
                     wave_state = WAVE_STATE_CLEARING;
                 } else {
-                    wave_timer = enemy_get_inter_spawn_frames_for_wave();
+                    spawn_enemy(wave_spawned, wave_spawn_types[wave_spawned]);
+                    wave_spawned++;
+
+                    if (wave_spawned >= wave_spawn_count) {
+                        wave_state = WAVE_STATE_CLEARING;
+                    } else {
+                        wave_timer = enemy_get_inter_spawn_frames_for_wave();
+                    }
                 }
             }
             break;

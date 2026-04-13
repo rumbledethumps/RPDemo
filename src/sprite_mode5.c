@@ -79,7 +79,7 @@ void sprite_mode5_init_projectiles(void) {
     }
 
     // Mode 5 args: MODE, OPTIONS, CONFIG, LENGTH, PLANE, BEGIN, END
-    if (xreg_vga_mode(5, 0x02, PROJECTILE_CONFIG, MAX_PROJECTILES, 1, 0, 0) < 0) {
+    if (xreg_vga_mode(5, 0x02, PROJECTILE_CONFIG, MAX_PROJECTILES, 0, 24, 0) < 0) {
         puts("xreg_vga_mode failed");
         return;
     }
@@ -107,7 +107,7 @@ void sprite_mode5_init_enemies(void) {
 
     // Mode 5 args: MODE, OPTIONS, CONFIG, LENGTH, PLANE, BEGIN, END
     // OPTIONS 0x0A = 16x16 sprites, 4bpp
-    if (xreg_vga_mode(5, 0x0A, ENEMY_CONFIG, MAX_ENEMIES, 0, 24, 0) < 0) {
+    if (xreg_vga_mode(5, 0x0A, ENEMY_CONFIG, MAX_ENEMIES, 1, 24, 0) < 0) {
         puts("xreg_vga_mode failed");
         return;
     }

@@ -58,7 +58,7 @@ static bool projectile_is_offscreen_enemy(uint8_t slot)
 static bool projectile_is_offscreen_player(uint8_t slot)
 {
     int16_t y = (int16_t)(projectiles[slot].y_q8 >> Q8_SHIFT);
-    return (y < HUD_TOP_PX);
+    return (y < (HUD_TOP_PX - PROJECTILE_SPRITE_SIZE_PX));
 }
 
 void projectile_init(void)

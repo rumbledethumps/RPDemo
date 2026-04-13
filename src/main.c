@@ -279,7 +279,6 @@ static void reset_to_title_scene(void)
     hud_health_last = PLAYER_MAX_HEALTH;
     tile_mode2_update_health_fx(false, false);
     sprite_mode5_show_player();
-    tile_mode2_clear_level_bonus();
     music_set_track("music/RESOURCE.001.vgm");
     game_over_timer = 0;
     game_over_letters_started = false;
