@@ -82,5 +82,7 @@ void sprite_mode5_update_engine(bool moving_down);
 void sprite_mode5_set_damage_flash(bool active);
 void sprite_mode5_hide_player(void);
 void sprite_mode5_show_player(void);
+void sprite_mode5_show_boss(int16_t x, int16_t y, uint8_t frame_set_base);
+void sprite_mode5_hide_boss(void);
 
 #endif // SPRITE_MODE5_H

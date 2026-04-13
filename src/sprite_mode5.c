@@ -224,6 +224,30 @@ void sprite_mode5_set_damage_flash(bool active)
     sprite_mode5_write_palette_entry(15, color);
 }
 
+void sprite_mode5_show_boss(int16_t x, int16_t y, uint8_t frame_set_base)
+{
+    for (uint8_t row = 0; row < BOSS_GRID_ROWS; ++row) {
+        for (uint8_t col = 0; col < BOSS_GRID_COLS; ++col) {
+            uint8_t tile = (uint8_t)(row * BOSS_GRID_COLS + col);
+            sprite_mode5_set_enemy(
+                (uint8_t)(BOSS_SPRITE_SLOT_FIRST + tile),
+                (int16_t)(x + (int16_t)(col * ENEMY_SPRITE_SIZE_PX)),
+                (int16_t)(y + (int16_t)(row * ENEMY_SPRITE_SIZE_PX)),
+                (uint8_t)(frame_set_base + tile)
+            );
+        }
+    }
+}
+
+void sprite_mode5_hide_boss(void)
+{
+    for (uint8_t i = 0; i < BOSS_SPRITE_COUNT; ++i) {
+        unsigned ptr = ENEMY_CONFIG + ((unsigned)(BOSS_SPRITE_SLOT_FIRST + i) * sizeof(vga_mode5_sprite_t));
+        xram0_struct_set(ptr, vga_mode5_sprite_t, x_pos_px, -32);
+        xram0_struct_set(ptr, vga_mode5_sprite_t, y_pos_px, -32);
+    }
+}
+
 void sprite_mode5_hide_player(void)
 {
     xram0_struct_set(PLAYER_CONFIG, vga_mode5_sprite_t, x_pos_px, -32);
