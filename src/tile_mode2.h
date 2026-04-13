@@ -76,6 +76,8 @@ void tile_mode2_set_level_complete_banner(bool visible);
 void tile_mode2_set_bonus_continue_prompt(bool visible);
 void tile_mode2_set_health(uint8_t health);
 void tile_mode2_update_health_fx(bool damage_flash_active, bool low_health);
+void tile_mode2_set_boss_hud_visible(bool visible);
+void tile_mode2_set_boss_health(uint8_t health);
 void tile_mode2_clear_level_bonus(void);
 void tile_mode2_begin_level_bonus(uint8_t level, uint8_t multiplier);
 void tile_mode2_set_bonus_row(uint8_t enemy_type, uint16_t kills, uint16_t points_each, uint16_t subtotal);

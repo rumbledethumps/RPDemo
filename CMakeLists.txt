@@ -38,6 +38,7 @@ target_sources(RPDemo PRIVATE
     src/gameplay_playing.c
     src/gameplay_bonus.c
     src/gameplay_game_over.c
+    src/gameplay_boss.c
     src/projectile.c
     src/enemy.c
     src/score.c

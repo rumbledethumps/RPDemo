@@ -12,6 +12,7 @@
 #include "sprite_mode5.h"
 #include "tile_mode2.h"
 #include "gameplay_internal.h"
+#include "gameplay_boss.h"
 
 void gameplay_update_playing_state(gameplay_runtime_t *state)
 {
@@ -103,7 +104,7 @@ void gameplay_update_playing_state(gameplay_runtime_t *state)
         player_controller_reset_damage_state();
         projectile_init();
         enemy_clear_all();
-        tile_mode2_set_level_complete_banner(true);
-        state->player_script = PLAYER_SCRIPT_TO_BONUS;
+        game_state_enter_boss();
+        gameplay_boss_begin(state);
     }
 }

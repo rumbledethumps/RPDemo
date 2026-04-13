@@ -1,6 +1,7 @@
 #include <rp6502.h>
 #include <stdio.h>
 #include <stdbool.h>
+#include <stddef.h>
 #include "constants.h"
 #include "sprite_mode5.h"
 #include "tile_mode2.h"
@@ -35,6 +36,53 @@ static bool init_graphics(void)
 
 uint8_t vsync_last = 0;
 
+static void print_xram_range(const char *label, unsigned start, unsigned size)
+{
+    unsigned end = start + size - 1u;
+    printf("%-16s %04X-%04X (%u)\n", label, start, end, size);
+}
+
+static void print_overlap_warning(const char *label, unsigned start, unsigned size, unsigned guard_start, unsigned guard_size)
+{
+    unsigned end = start + size - 1u;
+    unsigned guard_end = guard_start + guard_size - 1u;
+
+    if (!(end < guard_start || start > guard_end)) {
+        printf("WARNING overlap: %s with %04X-%04X\n", label, guard_start, guard_end);
+    }
+}
+
+static void dump_xram_layout(void)
+{
+    const unsigned mode2_cfg_size = (unsigned)sizeof(vga_mode2_config_t);
+    const unsigned mode5_cfg_size = (unsigned)sizeof(vga_mode5_sprite_t);
+    const unsigned player_cfg_size = mode5_cfg_size;
+    const unsigned projectile_cfg_size = (unsigned)(MAX_PROJECTILES * mode5_cfg_size);
+    const unsigned player_bullet_cfg_size = (unsigned)(MAX_PLAYER_PROJECTILES * mode5_cfg_size);
+    const unsigned enemy_bullet_cfg_size = projectile_cfg_size - player_bullet_cfg_size;
+    const unsigned enemy_cfg_size = (unsigned)(MAX_ENEMIES * mode5_cfg_size);
+
+    puts("XRAM layout:");
+    print_xram_range("SPRITE_DATA", SPRITE_DATA_START, SPRITE_DATA_END - SPRITE_DATA_START);
+    print_xram_range("TILE_BG_CONFIG", TILE_BG_CONFIG, mode2_cfg_size);
+    print_xram_range("TILE_FG_CONFIG", TILE_FG_CONFIG, mode2_cfg_size);
+    print_xram_range("TILE_HUD_CONFIG", TILE_HUD_CONFIG, mode2_cfg_size);
+    print_xram_range("PLAYER_CONFIG", PLAYER_CONFIG, player_cfg_size);
+    print_xram_range("PROJ_CONFIG", PROJECTILE_CONFIG, projectile_cfg_size);
+    print_xram_range("PLAYER_BULLETS", PROJECTILE_CONFIG, player_bullet_cfg_size);
+    print_xram_range("ENEMY_BULLETS", PROJECTILE_CONFIG + player_bullet_cfg_size, enemy_bullet_cfg_size);
+    print_xram_range("ENEMY_CONFIG", ENEMY_CONFIG, enemy_cfg_size);
+    print_xram_range("GAMEPAD_INPUT", GAMEPAD_INPUT, 40u);
+    print_xram_range("KEYBOARD_INPUT", KEYBOARD_INPUT, 32u);
+
+    print_overlap_warning("PLAYER_CONFIG", PLAYER_CONFIG, player_cfg_size, GAMEPAD_INPUT, 40u);
+    print_overlap_warning("PROJ_CONFIG", PROJECTILE_CONFIG, projectile_cfg_size, GAMEPAD_INPUT, 40u);
+    print_overlap_warning("ENEMY_CONFIG", ENEMY_CONFIG, enemy_cfg_size, GAMEPAD_INPUT, 40u);
+    print_overlap_warning("PLAYER_CONFIG", PLAYER_CONFIG, player_cfg_size, KEYBOARD_INPUT, 32u);
+    print_overlap_warning("PROJ_CONFIG", PROJECTILE_CONFIG, projectile_cfg_size, KEYBOARD_INPUT, 32u);
+    print_overlap_warning("ENEMY_CONFIG", ENEMY_CONFIG, enemy_cfg_size, KEYBOARD_INPUT, 32u);
+}
+
 int main(void)
 {
 
@@ -47,6 +95,7 @@ int main(void)
         puts("Fatal: graphics initialization failed");
         return 1;
     }
+    dump_xram_layout();
     music_init();
     init_input_system();
     player_controller_init();

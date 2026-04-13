@@ -64,6 +64,7 @@ static uint8_t health_flash_tick = 0;
 #define BONUS_TABLE_WIDTH 26
 #define BONUS_ROW_Y_START (BONUS_TABLE_Y + 2)
 #define BONUS_ROW_Y_STEP 2
+#define BOSS_LABEL_TEXT_LEN 4
 #define BONUS_TOTAL_Y (BONUS_TABLE_Y + 16)
 #define BONUS_ICON_TILE_X BONUS_TABLE_X
 
@@ -691,6 +692,59 @@ void tile_mode2_update_health_fx(bool damage_flash_active, bool low_health)
     if (desired_color != current_health_palette_color) {
         current_health_palette_color = desired_color;
         tile_mode2_write_hud_palette_entry(10, desired_color);
+    }
+}
+
+void tile_mode2_set_boss_hud_visible(bool visible)
+{
+    static const uint8_t boss_tiles[BOSS_LABEL_TEXT_LEN] = {
+        228, // B
+        241, // O
+        245, // S
+        245, // S
+    };
+
+    if (!visible) {
+        tile_mode2_clear_hud_text(BOSS_HUD_LABEL_X, BOSS_HUD_LABEL_Y, BOSS_LABEL_TEXT_LEN);
+        tile_mode2_clear_hud_text(BOSS_HUD_HEALTH_X, BOSS_HUD_HEALTH_Y, HEALTH_BAR_TILE_COUNT);
+        return;
+    }
+
+    tile_mode2_write_hud_palette_entry(2, HUD_TEXT_YELLOW);
+    for (uint8_t i = 0; i < BOSS_LABEL_TEXT_LEN; ++i) {
+        tile_mode2_write_tile(
+            STARFIELD_HUD_DATA,
+            STARFIELD_HUD_WIDTH,
+            (uint8_t)(BOSS_HUD_LABEL_X + i),
+            BOSS_HUD_LABEL_Y,
+            boss_tiles[i]
+        );
+    }
+}
+
+void tile_mode2_set_boss_health(uint8_t health)
+{
+    for (uint8_t i = 0; i < HEALTH_BAR_TILE_COUNT; ++i) {
+        int16_t segment_health = (int16_t)health - (int16_t)(i * HEALTH_PER_BAR_TILE);
+        uint8_t fill;
+        uint8_t tile_index;
+
+        if (segment_health <= 0) {
+            fill = 0;
+        } else if (segment_health >= HEALTH_PER_BAR_TILE) {
+            fill = HEALTH_PER_BAR_TILE;
+        } else {
+            fill = (uint8_t)segment_health;
+        }
+
+        tile_index = (uint8_t)(HEALTH_BAR_TILE_EMPTY_INDEX - fill);
+        tile_mode2_write_tile(
+            STARFIELD_HUD_DATA,
+            STARFIELD_HUD_WIDTH,
+            (uint8_t)(BOSS_HUD_HEALTH_X + i),
+            BOSS_HUD_HEALTH_Y,
+            tile_index
+        );
     }
 }
 

@@ -12,6 +12,7 @@
 #include "sprite_mode5.h"
 #include "tile_mode2.h"
 #include "gameplay_internal.h"
+#include "gameplay_boss.h"
 
 #define PLAYER_SCRIPT_STEP_PX 1
 #define PLAYER_BONUS_TARGET_X 240
@@ -256,6 +257,8 @@ void gameplay_frame(bool start_pressed)
 
     if (state == GAME_STATE_PLAYING) {
         gameplay_update_playing_state(&runtime_state);
+    } else if (state == GAME_STATE_BOSS) {
+        gameplay_boss_update(&runtime_state);
     } else if (state == GAME_STATE_LEVEL_BONUS) {
         gameplay_update_bonus_state(&runtime_state);
     } else if (state == GAME_STATE_GAME_OVER) {
