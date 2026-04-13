@@ -11,6 +11,7 @@
 #include "projectile.h"
 #include "enemy.h"
 #include "score.h"
+#include "level_bonus.h"
 
 static bool init_graphics(void)
 {
@@ -45,50 +46,19 @@ static bool bonus_entry_pending = false;
 static uint8_t bonus_entry_hold_timer = 0;
 
 typedef enum {
-    BONUS_PHASE_IDLE = 0,
-    BONUS_PHASE_ICON_FLY_IN,
-    BONUS_PHASE_COUNT_KILLS,
-    BONUS_PHASE_ROW_HOLD,
-    BONUS_PHASE_COUNTDOWN_TOTAL,
-    BONUS_PHASE_REFILL_HEALTH,
-    BONUS_PHASE_DONE,
-} bonus_phase_t;
-
-typedef enum {
     PLAYER_SCRIPT_NONE = 0,
     PLAYER_SCRIPT_TO_BONUS,
     PLAYER_SCRIPT_FROM_BONUS,
 } player_script_t;
 
-static bonus_phase_t bonus_phase = BONUS_PHASE_IDLE;
-static uint16_t bonus_kills[ENEMY_TYPE_COUNT];
-static uint8_t bonus_multiplier = 1;
-static uint8_t bonus_row_index = 0;
-static uint16_t bonus_row_target_kills = 0;
-static uint16_t bonus_row_count_display = 0;
-static uint16_t bonus_row_points_each = 0;
-static uint16_t bonus_row_subtotal = 0;
-static uint8_t bonus_count_tick = 0;
-static uint8_t bonus_row_hold_timer = 0;
-static uint16_t bonus_health_pending = 0;
-static uint8_t bonus_health_tick = 0;
-static uint8_t bonus_payout_tick = 0;
-static uint32_t bonus_pending_total = 0;
-static bool level_bonus_complete = false;
 static player_script_t player_script = PLAYER_SCRIPT_NONE;
 
-#define BONUS_COUNT_STEP_FRAMES 6
 #define PLAYER_SCRIPT_STEP_PX 1
 #define PLAYER_BONUS_TARGET_X 240
 #define PLAYER_BONUS_TARGET_Y 120
 #define PLAYER_START_X ((SCREEN_WIDTH - PLAYER_SPRITE_SIZE_PX) / 2)
 #define PLAYER_START_Y (((SCREEN_HEIGHT - PLAYER_SPRITE_SIZE_PX) * 2) / 3)
-#define BONUS_ROW_HOLD_FRAMES 36
-#define BONUS_PAYOUT_STEP_FRAMES 3
-#define BONUS_HEALTH_STEP_FRAMES 6
 #define BONUS_ENTRY_HOLD_FRAMES 60
-
-static void begin_level_bonus_sequence(void);
 
 static const char *track_for_level(uint8_t level)
 {
@@ -102,32 +72,6 @@ static const char *track_for_level(uint8_t level)
         default:
             return "music/RESOURCE.009.vgm";
     }
-}
-
-static void reset_level_bonus_sequence(void)
-{
-    for (uint8_t i = 0; i < ENEMY_TYPE_COUNT; ++i) {
-        bonus_kills[i] = 0;
-    }
-
-    bonus_phase = BONUS_PHASE_IDLE;
-    bonus_multiplier = 1;
-    bonus_row_index = 0;
-    bonus_row_target_kills = 0;
-    bonus_row_count_display = 0;
-    bonus_row_points_each = 0;
-    bonus_row_subtotal = 0;
-    bonus_count_tick = 0;
-    bonus_row_hold_timer = 0;
-    bonus_health_pending = 0;
-    bonus_health_tick = 0;
-    bonus_payout_tick = 0;
-    bonus_pending_total = 0;
-    level_bonus_complete = false;
-    player_script = PLAYER_SCRIPT_NONE;
-    bonus_entry_pending = false;
-    bonus_entry_hold_timer = 0;
-    tile_mode2_set_bonus_continue_prompt(false);
 }
 
 static void update_player_script(void)
@@ -192,166 +136,6 @@ static void update_player_script(void)
     }
 }
 
-static void begin_level_bonus_sequence(void)
-{
-    uint16_t total_kills = 0;
-
-    bonus_multiplier = current_level;
-    if (bonus_multiplier == 0) {
-        bonus_multiplier = 1;
-    }
-
-    for (uint8_t i = 0; i < ENEMY_TYPE_COUNT; ++i) {
-        bonus_kills[i] = score_get_level_kills(i);
-        total_kills = (uint16_t)(total_kills + bonus_kills[i]);
-    }
-
-    bonus_row_index = 0;
-    bonus_row_target_kills = 0;
-    bonus_row_count_display = 0;
-    bonus_row_points_each = 0;
-    bonus_row_subtotal = 0;
-    bonus_count_tick = 0;
-    bonus_row_hold_timer = 0;
-    bonus_health_pending = (uint16_t)(total_kills / 3u);
-    bonus_health_tick = 0;
-    bonus_payout_tick = 0;
-    bonus_pending_total = 0;
-    level_bonus_complete = false;
-
-    projectile_init();
-    enemy_clear_all();
-    enemy_prepare_bonus_icons();
-    sprite_mode5_show_player();
-
-    tile_mode2_start_level_bonus_transition();
-    music_set_track("music/RESOURCE.006.vgm");
-    tile_mode2_set_level_complete_banner(false);
-    tile_mode2_begin_level_bonus(current_level, bonus_multiplier);
-    tile_mode2_set_bonus_pending_total(0);
-    tile_mode2_set_bonus_continue_prompt(false);
-
-    enemy_start_bonus_icon_fly_in(0);
-    bonus_phase = BONUS_PHASE_ICON_FLY_IN;
-}
-
-static void update_level_bonus_sequence(void)
-{
-    switch (bonus_phase) {
-        case BONUS_PHASE_IDLE:
-            break;
-
-        case BONUS_PHASE_ICON_FLY_IN:
-            if (enemy_update_bonus_icon_fly_in()) {
-                bonus_row_target_kills = bonus_kills[bonus_row_index];
-                bonus_row_count_display = 0;
-                bonus_row_points_each = (uint16_t)(score_points_for_enemy(bonus_row_index) * bonus_multiplier);
-                bonus_row_subtotal = 0;
-                bonus_count_tick = 0;
-
-                tile_mode2_set_bonus_row(
-                    bonus_row_index,
-                    bonus_row_count_display,
-                    bonus_row_points_each,
-                    bonus_row_subtotal
-                );
-
-                bonus_phase = BONUS_PHASE_COUNT_KILLS;
-            }
-            break;
-
-        case BONUS_PHASE_COUNT_KILLS:
-            bonus_count_tick++;
-            if (bonus_count_tick >= BONUS_COUNT_STEP_FRAMES) {
-                bonus_count_tick = 0;
-
-                if (bonus_row_count_display < bonus_row_target_kills) {
-                    bonus_row_count_display++;
-                }
-
-                bonus_row_subtotal = (uint16_t)(bonus_row_count_display * bonus_row_points_each);
-                tile_mode2_set_bonus_row(
-                    bonus_row_index,
-                    bonus_row_count_display,
-                    bonus_row_points_each,
-                    bonus_row_subtotal
-                );
-            }
-
-            if (bonus_row_count_display >= bonus_row_target_kills) {
-                bonus_pending_total += bonus_row_subtotal;
-                tile_mode2_set_bonus_pending_total(bonus_pending_total);
-                bonus_row_hold_timer = BONUS_ROW_HOLD_FRAMES;
-                bonus_phase = BONUS_PHASE_ROW_HOLD;
-            }
-            break;
-
-        case BONUS_PHASE_ROW_HOLD:
-            if (bonus_row_hold_timer > 0) {
-                bonus_row_hold_timer--;
-                break;
-            }
-
-            bonus_row_index++;
-            if (bonus_row_index < ENEMY_TYPE_COUNT) {
-                enemy_start_bonus_icon_fly_in(bonus_row_index);
-                bonus_phase = BONUS_PHASE_ICON_FLY_IN;
-            } else {
-                bonus_phase = BONUS_PHASE_COUNTDOWN_TOTAL;
-            }
-            break;
-
-        case BONUS_PHASE_COUNTDOWN_TOTAL:
-            if (bonus_pending_total > 0) {
-                uint32_t payout_step;
-
-                bonus_payout_tick++;
-                if (bonus_payout_tick < BONUS_PAYOUT_STEP_FRAMES) {
-                    break;
-                }
-                bonus_payout_tick = 0;
-
-                if (bonus_pending_total >= 100u) {
-                    payout_step = 100u;
-                } else if (bonus_pending_total >= 40u) {
-                    payout_step = 40u;
-                } else if (bonus_pending_total >= 12u) {
-                    payout_step = 12u;
-                } else {
-                    payout_step = bonus_pending_total;
-                }
-
-                bonus_pending_total -= payout_step;
-                score_add_points(payout_step);
-                tile_mode2_set_bonus_pending_total(bonus_pending_total);
-            } else {
-                bonus_phase = BONUS_PHASE_REFILL_HEALTH;
-            }
-            break;
-
-        case BONUS_PHASE_REFILL_HEALTH:
-            if (bonus_health_pending > 0 && player_controller_get_health() < PLAYER_MAX_HEALTH) {
-                bonus_health_tick++;
-                if (bonus_health_tick >= BONUS_HEALTH_STEP_FRAMES) {
-                    bonus_health_tick = 0;
-                    player_controller_heal(1);
-                    bonus_health_pending--;
-                    tile_mode2_set_health(player_controller_get_health());
-                    hud_health_last = player_controller_get_health();
-                    tile_mode2_update_health_fx(false, player_controller_is_low_health());
-                }
-            } else {
-                bonus_phase = BONUS_PHASE_DONE;
-                level_bonus_complete = true;
-                tile_mode2_set_bonus_continue_prompt(true);
-            }
-            break;
-
-        case BONUS_PHASE_DONE:
-            break;
-    }
-}
-
 static void reset_to_title_scene(void)
 {
     enemy_stop_game_over_animation();
@@ -377,7 +161,10 @@ static void reset_to_title_scene(void)
     game_over_letters_started = false;
     game_over_scroll_started = false;
     game_over_scroll_delay_timer = 0;
-    reset_level_bonus_sequence();
+    level_bonus_reset();
+    player_script = PLAYER_SCRIPT_NONE;
+    bonus_entry_pending = false;
+    bonus_entry_hold_timer = 0;
 }
 
 static void start_new_run(void)
@@ -407,7 +194,10 @@ static void start_new_run(void)
     game_over_letters_started = false;
     game_over_scroll_started = false;
     game_over_scroll_delay_timer = 0;
-    reset_level_bonus_sequence();
+    level_bonus_reset();
+    player_script = PLAYER_SCRIPT_NONE;
+    bonus_entry_pending = false;
+    bonus_entry_hold_timer = 0;
 }
 
 static void start_next_level(void)
@@ -434,7 +224,10 @@ static void start_next_level(void)
     tile_mode2_set_level_banner(current_level, true);
     level_banner_visible = true;
     music_set_track(track_for_level(current_level));
-    reset_level_bonus_sequence();
+    level_bonus_reset();
+    player_script = PLAYER_SCRIPT_NONE;
+    bonus_entry_pending = false;
+    bonus_entry_hold_timer = 0;
     player_script = PLAYER_SCRIPT_FROM_BONUS;
 }
 
@@ -478,7 +271,7 @@ int main(void)
             } else if (transition == GAME_TRANSITION_UNPAUSE_GAME) {
                 tile_mode2_set_paused_banner(false);
             } else if (transition == GAME_TRANSITION_START_NEXT_LEVEL) {
-                if (level_bonus_complete) {
+                if (level_bonus_is_complete()) {
                     start_next_level();
                 } else {
                     game_state_enter_level_bonus();
@@ -520,7 +313,7 @@ int main(void)
                 } else {
                     bonus_entry_pending = false;
                     if (game_state_enter_level_bonus() == GAME_TRANSITION_ENTER_LEVEL_BONUS) {
-                        begin_level_bonus_sequence();
+                        level_bonus_begin(current_level);
                     }
                 }
                 tile_mode2_update_health_fx(false, player_controller_is_low_health());
@@ -578,7 +371,10 @@ int main(void)
                     game_over_letters_started = false;
                     game_over_scroll_started = false;
                     game_over_scroll_delay_timer = 0;
-                    reset_level_bonus_sequence();
+                    level_bonus_reset();
+                    player_script = PLAYER_SCRIPT_NONE;
+                    bonus_entry_pending = false;
+                    bonus_entry_hold_timer = 0;
                 }
             }
 
@@ -592,8 +388,8 @@ int main(void)
         } else if (game_state_get() == GAME_STATE_LEVEL_BONUS) {
             sprite_mode5_set_frame(0);
             sprite_mode5_update_engine(false);
-            update_level_bonus_sequence();
-            if (level_bonus_complete) {
+            level_bonus_update(&hud_health_last);
+            if (level_bonus_is_complete()) {
                 tile_mode2_update_title_palette();
             }
         } else if (game_state_get() == GAME_STATE_GAME_OVER) {
