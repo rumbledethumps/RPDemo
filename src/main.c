@@ -354,6 +354,7 @@ static void reset_to_title_scene(void)
     tile_mode2_restore_hud_from_rom();
     tile_mode2_set_score(score_get());
     tile_mode2_set_multiplier(score_get_multiplier());
+    tile_mode2_set_paused_banner(false);
     tile_mode2_set_health(PLAYER_MAX_HEALTH);
     hud_health_last = PLAYER_MAX_HEALTH;
     tile_mode2_update_health_fx(false, false);
@@ -378,6 +379,7 @@ static void start_new_run(void)
     player_controller_reset_for_new_run();
     tile_mode2_set_score(0);
     tile_mode2_set_multiplier(score_get_multiplier());
+    tile_mode2_set_paused_banner(false);
     tile_mode2_set_health(PLAYER_MAX_HEALTH);
     hud_health_last = PLAYER_MAX_HEALTH;
     tile_mode2_update_health_fx(false, false);
@@ -403,6 +405,7 @@ static void start_next_level(void)
     score_reset_level_kills();
     tile_mode2_set_score(score_get());
     tile_mode2_set_multiplier(score_get_multiplier());
+    tile_mode2_set_paused_banner(false);
     tile_mode2_set_health(player_controller_get_health());
     hud_health_last = player_controller_get_health();
     tile_mode2_update_health_fx(false, player_controller_is_low_health());
@@ -449,6 +452,10 @@ int main(void)
 
             if (transition == GAME_TRANSITION_START_GAME) {
                 start_new_run();
+            } else if (transition == GAME_TRANSITION_PAUSE_GAME) {
+                tile_mode2_set_paused_banner(true);
+            } else if (transition == GAME_TRANSITION_UNPAUSE_GAME) {
+                tile_mode2_set_paused_banner(false);
             } else if (transition == GAME_TRANSITION_START_NEXT_LEVEL) {
                 if (level_bonus_complete) {
                     start_next_level();
@@ -567,6 +574,7 @@ int main(void)
                             tile_mode2_restore_hud_from_rom();
                             tile_mode2_set_score(score_get());
                             tile_mode2_set_multiplier(score_get_multiplier());
+                            tile_mode2_set_paused_banner(false);
                             tile_mode2_set_health(0);
                             game_over_scroll_started = true;
                         }

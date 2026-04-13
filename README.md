@@ -1297,7 +1297,8 @@ Score display location:
 - 6 digits, initialized as `000000`
 - Tile indices `19..28` are digits `0..9`
 - Combo multiplier indicator uses the bottom-left HUD tiles `(0,28)` and `(1,28)` as `<digit>x`.
-- Tile index `250` is used for the `x` symbol.
+- Tile index `225` is used for the `x` symbol.
+- While paused, `PAUSED` is rendered near HUD center using explicit tiles `242, 227, 247, 245, 231, 230`.
 
 In `tile_mode2.c` we expose:
 
@@ -1575,9 +1576,9 @@ Bonus tally uses total kills by enemy type across the full previous level.
 Display format is per row:
 - enemy icon (sprite)
 - 2-digit kill count
-- tile `250` for `x`
+- tile `225` for `x`
 - points-per-kill (scaled)
-- tile `251` for `=`
+- tile `226` for `=`
 - row subtotal
 
 Score scaling by level:

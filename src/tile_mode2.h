@@ -70,6 +70,7 @@ bool tile_mode2_restore_hud_from_rom(void);
 void tile_mode2_update_title_palette(void);
 void tile_mode2_set_score(uint32_t score);
 void tile_mode2_set_multiplier(uint8_t multiplier);
+void tile_mode2_set_paused_banner(bool visible);
 void tile_mode2_set_health(uint8_t health);
 void tile_mode2_update_health_fx(bool damage_flash_active, bool low_health);
 void tile_mode2_clear_level_bonus(void);
