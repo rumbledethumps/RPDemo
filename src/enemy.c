@@ -1583,20 +1583,24 @@ void enemy_update(void)
             } else {
                 uint8_t free_slot = enemy_find_free_slot();
 
-                if (wave_type == 5) {
-                    while (wave_spawned < wave_spawn_count) {
+                if (wave_spawned < wave_spawn_count && wave_spawn_types[wave_spawned] == 5) {
+                    bool spawned_any = false;
+
+                    while (wave_spawned < wave_spawn_count && wave_spawn_types[wave_spawned] == 5) {
                         free_slot = enemy_find_free_slot();
                         if (free_slot >= MAX_ENEMIES) {
                             break;
                         }
                         spawn_enemy(free_slot, wave_spawn_types[wave_spawned], wave_spawned);
                         wave_spawned++;
+                        spawned_any = true;
                     }
+
                     if (wave_spawned >= wave_spawn_count) {
                         wave_clear_timeout_timer = WAVE_CLEAR_TIMEOUT_FRAMES;
                         wave_state = WAVE_STATE_CLEARING;
                     } else {
-                        wave_timer = 1;
+                        wave_timer = spawned_any ? ENEMY_INTER_SPAWN_FRAMES : 1;
                     }
                 } else {
                     if (free_slot < MAX_ENEMIES) {
