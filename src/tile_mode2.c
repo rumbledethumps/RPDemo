@@ -40,6 +40,9 @@ static uint8_t health_flash_tick = 0;
 #define SCORE_TILE_X 17
 #define SCORE_TILE_Y 1
 #define SCORE_TILE_INDEX_BASE 19
+#define MULTIPLIER_TILE_X 0
+#define MULTIPLIER_TILE_Y 28
+#define HUD_X_TILE_INDEX 250
 #define HEALTH_FLASH_TOGGLE_FRAMES 3
 #define BONUS_TABLE_X 10
 #define BONUS_TABLE_Y 5
@@ -366,6 +369,31 @@ void tile_mode2_set_score(uint32_t score)
             (uint8_t)(SCORE_TILE_INDEX_BASE + digit)
         );
     }
+}
+
+void tile_mode2_set_multiplier(uint8_t multiplier)
+{
+    if (multiplier < 1u) {
+        multiplier = 1u;
+    }
+    if (multiplier > 9u) {
+        multiplier = 9u;
+    }
+
+    tile_mode2_write_tile(
+        STARFIELD_HUD_DATA,
+        STARFIELD_HUD_WIDTH,
+        MULTIPLIER_TILE_X,
+        MULTIPLIER_TILE_Y,
+        (uint8_t)(SCORE_TILE_INDEX_BASE + multiplier)
+    );
+    tile_mode2_write_tile(
+        STARFIELD_HUD_DATA,
+        STARFIELD_HUD_WIDTH,
+        (uint8_t)(MULTIPLIER_TILE_X + 1u),
+        MULTIPLIER_TILE_Y,
+        HUD_X_TILE_INDEX
+    );
 }
 
 void tile_mode2_start_gameplay_transition(void)

@@ -7,6 +7,10 @@
 
 static uint32_t g_score = 0;
 static uint16_t g_level_kills[ENEMY_TYPE_COUNT];
+static uint8_t g_multiplier = 1;
+static uint8_t g_kills_since_hit = 0;
+
+#define SCORE_MULTIPLIER_MAX 5u
 
 uint8_t score_points_for_enemy(uint8_t enemy_type)
 {
@@ -24,17 +28,24 @@ uint8_t score_points_for_enemy(uint8_t enemy_type)
 void score_init(void)
 {
     g_score = 0;
+    g_multiplier = 1;
+    g_kills_since_hit = 0;
     score_reset_level_kills();
     tile_mode2_set_score(g_score);
+    tile_mode2_set_multiplier(g_multiplier);
 }
 
 void score_add_enemy_kill(uint8_t enemy_type)
 {
-    uint8_t points = score_points_for_enemy(enemy_type);
+    uint32_t points = score_points_for_enemy(enemy_type);
 
     if (enemy_type < ENEMY_TYPE_COUNT) {
         g_level_kills[enemy_type]++;
     }
+
+    g_kills_since_hit++;
+
+    points *= g_multiplier;
 
     if (g_score < 999999u) {
         g_score += points;
@@ -43,7 +54,12 @@ void score_add_enemy_kill(uint8_t enemy_type)
         }
     }
 
+    if ((g_kills_since_hit % 2u) == 0u && g_multiplier < SCORE_MULTIPLIER_MAX) {
+        g_multiplier++;
+    }
+
     tile_mode2_set_score(g_score);
+    tile_mode2_set_multiplier(g_multiplier);
 }
 
 void score_add_points(uint32_t points)
@@ -63,6 +79,18 @@ void score_add_points(uint32_t points)
 void score_reset_level_kills(void)
 {
     memset(g_level_kills, 0, sizeof(g_level_kills));
+}
+
+void score_reset_multiplier(void)
+{
+    g_multiplier = 1;
+    g_kills_since_hit = 0;
+    tile_mode2_set_multiplier(g_multiplier);
+}
+
+uint8_t score_get_multiplier(void)
+{
+    return g_multiplier;
 }
 
 uint16_t score_get_level_kills(uint8_t enemy_type)

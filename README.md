@@ -1296,11 +1296,14 @@ Score display location:
 - HUD tile positions `(17,1)` through `(22,1)`
 - 6 digits, initialized as `000000`
 - Tile indices `19..28` are digits `0..9`
+- Combo multiplier indicator uses the bottom-left HUD tiles `(0,28)` and `(1,28)` as `<digit>x`.
+- Tile index `250` is used for the `x` symbol.
 
 In `tile_mode2.c` we expose:
 
 ```c
 void tile_mode2_set_score(uint32_t score)
+void tile_mode2_set_multiplier(uint8_t multiplier)
 ```
 
 This function clamps to `999999` and writes six tiles into the HUD tilemap (`STARFIELD_HUD_DATA`), mapping each decimal digit to tile index `19 + digit`.
@@ -1310,7 +1313,14 @@ In `score.c` we keep a running score and update HUD digits whenever score change
 ```c
 void score_init(void);
 void score_add_enemy_kill(uint8_t enemy_type);
+void score_reset_multiplier(void);
 ```
+
+Kill combo multiplier rules are:
+- Start at `1x`.
+- Each enemy kill awards `base_points * current_multiplier`.
+- Multiplier increases by `+1` after every `2` kills without being hit, up to `5x`.
+- Any player damage resets multiplier to `1x`.
 
 Point rules are:
 - enemy type 0 = 10 points

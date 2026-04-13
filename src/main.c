@@ -353,6 +353,7 @@ static void reset_to_title_scene(void)
     tile_mode2_start_game_over_transition();
     tile_mode2_restore_hud_from_rom();
     tile_mode2_set_score(score_get());
+    tile_mode2_set_multiplier(score_get_multiplier());
     tile_mode2_set_health(PLAYER_MAX_HEALTH);
     hud_health_last = PLAYER_MAX_HEALTH;
     tile_mode2_update_health_fx(false, false);
@@ -376,6 +377,7 @@ static void start_new_run(void)
     score_reset_level_kills();
     player_controller_reset_for_new_run();
     tile_mode2_set_score(0);
+    tile_mode2_set_multiplier(score_get_multiplier());
     tile_mode2_set_health(PLAYER_MAX_HEALTH);
     hud_health_last = PLAYER_MAX_HEALTH;
     tile_mode2_update_health_fx(false, false);
@@ -400,6 +402,7 @@ static void start_next_level(void)
     enemy_start_level(current_level);
     score_reset_level_kills();
     tile_mode2_set_score(score_get());
+    tile_mode2_set_multiplier(score_get_multiplier());
     tile_mode2_set_health(player_controller_get_health());
     hud_health_last = player_controller_get_health();
     tile_mode2_update_health_fx(false, player_controller_is_low_health());
@@ -473,6 +476,7 @@ int main(void)
             int16_t hitbox_x;
             int16_t hitbox_y;
             uint8_t player_health;
+            bool took_damage = false;
 
             if (player_script != PLAYER_SCRIPT_NONE) {
                 update_player_script();
@@ -491,13 +495,19 @@ int main(void)
             if (player_controller_can_take_damage()) {
                 if (projectile_hit_test_player(hitbox_x, hitbox_y, PLAYER_HITBOX_SIZE, PLAYER_HITBOX_SIZE)) {
                     player_controller_apply_damage(PLAYER_BULLET_DAMAGE);
+                    took_damage = true;
                 }
             }
 
             if (player_controller_can_take_damage()) {
                 if (enemy_hit_test_player(hitbox_x, hitbox_y, PLAYER_HITBOX_SIZE, PLAYER_HITBOX_SIZE)) {
                     player_controller_apply_damage(PLAYER_CONTACT_DAMAGE);
+                    took_damage = true;
                 }
+            }
+
+            if (took_damage) {
+                score_reset_multiplier();
             }
 
             player_health = player_controller_get_health();
@@ -556,6 +566,7 @@ int main(void)
                             tile_mode2_start_game_over_transition();
                             tile_mode2_restore_hud_from_rom();
                             tile_mode2_set_score(score_get());
+                            tile_mode2_set_multiplier(score_get_multiplier());
                             tile_mode2_set_health(0);
                             game_over_scroll_started = true;
                         }
