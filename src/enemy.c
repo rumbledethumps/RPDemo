@@ -1617,6 +1617,9 @@ void enemy_update(void)
                     wave_timer = 0;
                 } else {
                     wave_spawned = 0;
+                    if (current_subwave > 6 && current_subwave < 11) {
+                        projectile_spawn_asteroid_wave((uint8_t)(1u + (enemy_rand() % 3u)));
+                    }
                     wave_timer = 0;
                     wave_state = WAVE_STATE_DELAY;
                 }

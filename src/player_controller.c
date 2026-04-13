@@ -8,11 +8,11 @@
 #include "projectile.h"
 #include "sprite_mode5.h"
 
-// Speed level 1..16 maps to 0.25..4.0 pixels per frame (each step = 0.25 px/frame).
+// Speed level 1..10 maps to 0.25..2.5 pixels per frame (each step = 0.25 px/frame).
 // To tune: change PLAYER_DEFAULT_SPEED. Range is PLAYER_SPEED_MIN to PLAYER_SPEED_MAX.
 #define PLAYER_DEFAULT_SPEED  5     // 1.25 px/frame
 #define PLAYER_SPEED_MIN      1     // 0.25 px/frame
-#define PLAYER_SPEED_MAX      16    // 4.00 px/frame
+#define PLAYER_SPEED_MAX      10    // 2.50 px/frame
 
 // Internal: convert speed level to Q8 fixed-point (1 level = 0.25 px = 64 Q8 units).
 #define Q8_SHIFT 8
@@ -30,14 +30,17 @@ static uint8_t death_anim_tick = 0;
 static uint8_t death_anim_hold_tick = 0;
 static bool death_animation_complete = false;
 
+static int player_speed_cap = PLAYER_DEFAULT_SPEED;
 static bool prev_speed_down = false;
 static bool prev_speed_up = false;
 static uint8_t fire_cooldown = 0;
+static uint8_t player_fire_rate = PLAYER_FIRE_RATE;
 static uint8_t damage_flash_phase = 0;
 
 void player_controller_reset_for_new_run(void)
 {
     player_speed = PLAYER_DEFAULT_SPEED;
+    player_speed_cap = PLAYER_DEFAULT_SPEED;
     player_x_q8 = ((int32_t)((SCREEN_WIDTH - PLAYER_SPRITE_SIZE_PX) / 2)) << Q8_SHIFT;
     player_y_q8 = ((int32_t)((SCREEN_HEIGHT - PLAYER_SPRITE_SIZE_PX) * 2 / 3)) << Q8_SHIFT;
     player_health = PLAYER_MAX_HEALTH;
@@ -49,6 +52,7 @@ void player_controller_reset_for_new_run(void)
     death_anim_hold_tick = 0;
     death_animation_complete = false;
     fire_cooldown = 0;
+    player_fire_rate = PLAYER_FIRE_RATE;
     damage_flash_phase = 0;
     prev_speed_down = false;
     prev_speed_up = false;
@@ -60,13 +64,34 @@ void player_controller_reset_for_new_run(void)
 void player_controller_set_speed(int level)
 {
     if (level < PLAYER_SPEED_MIN) level = PLAYER_SPEED_MIN;
-    if (level > PLAYER_SPEED_MAX) level = PLAYER_SPEED_MAX;
+    if (level > player_speed_cap) level = player_speed_cap;
     player_speed = level;
 }
 
 int player_controller_get_speed(void)
 {
     return player_speed;
+}
+
+void player_controller_apply_speed_pickup(void)
+{
+    if (player_speed_cap < PLAYER_SPEED_MAX) {
+        player_speed_cap++;
+    }
+
+    player_speed = player_speed_cap;
+}
+
+void player_controller_apply_power_pickup(void)
+{
+    if (player_fire_rate > PLAYER_FIRE_RATE_MIN) {
+        player_fire_rate--;
+    }
+}
+
+uint8_t player_controller_get_fire_rate(void)
+{
+    return player_fire_rate;
 }
 
 void player_controller_get_position(int16_t *x, int16_t *y)
@@ -267,7 +292,7 @@ void player_controller_update(void)
         return;
     }
 
-    // Tap LT to decrease speed by 1, tap RT to increase speed by 1.
+    // Tap LT to decrease speed by 1, tap RT to restore speed up to the unlocked cap.
     bool speed_down_now = is_action_pressed(0, ACTION_BTN_LT);
     bool speed_up_now = is_action_pressed(0, ACTION_BTN_RT);
 
@@ -292,7 +317,7 @@ void player_controller_update(void)
         int16_t py = (int16_t)(player_y_q8 >> Q8_SHIFT);
         // Spawn at horizontal center of player, top edge
         projectile_fire_player((int16_t)(px + (PLAYER_SPRITE_SIZE_PX - PROJECTILE_SPRITE_SIZE_PX) / 2), py);
-        fire_cooldown = PLAYER_FIRE_RATE;
+        fire_cooldown = player_fire_rate;
     }
 
     int32_t speed_q8 = SPEED_TO_Q8(player_speed);

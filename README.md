@@ -912,14 +912,39 @@ rp6502_asset(RPDemo 0x13470 images/Projectiles_4bpp.bin)
 Here is the layout for the projectile sprite data and configuration in XRAM:
 ```c
 #define PROJECTILE_DATA        (STARFIELD_TILES_DATA + STARFIELD_TILES_SIZE) // Address for projectile sprite data
-#define PROJECTILE_DATA_SIZE    0x0040U            // 64 bytes (2 frame 8x8 at 4bpp)
+#define PROJECTILE_DATA_SIZE    0x0100U            // 256 bytes (8 frame 8x8 at 4bpp)
 #define PROJECTILE_SPRITE_SIZE_PX   8                 // Projectile sprite is 8x8 pixels
 #define PROJECTILE_FRAME_SIZE   0x0020U            // 32 bytes per 8x8 4bpp frame
-#define PROJECTILE_FRAME_COUNT  2                  // 2 frames for projectile
+#define PROJECTILE_FRAME_COUNT  8                  // 8 frames for projectile/pickups/asteroids
 #define MAX_PROJECTILES         40                  // Max number of projectiles on screen at once
 
 #define SPRITE_DATA_END        (PROJECTILE_DATA + PROJECTILE_DATA_SIZE) // End of sprite data
 ```
+
+Projectile frame usage:
+- `0`: player projectile
+- `1`: enemy projectile
+- `2`: energy pickup
+- `3`: speed pickup
+- `4`: power pickup
+- `5,6,7`: asteroid animation sequence
+
+Between-wave asteroid events:
+- On non-final subwave transitions for waves `7..10`, `1..3` asteroids are spawned.
+- Asteroids descend vertically at `1 px/frame` and animate through frames `5,6,7`.
+- Asteroid collision uses a centered `6x6` hitbox inside the `8x8` sprite.
+- When destroyed by a player shot, asteroids roll a pickup drop:
+    - `50%` nothing
+    - `40%` energy
+    - `5%` power
+    - `5%` speed
+
+Pickup behavior and effects:
+- Pickup sprites zig-zag horizontally while descending at `0.25 px/frame`.
+- Pickup collection uses a centered `6x6` hitbox inside the `8x8` sprite.
+- Energy pickup: restores `8` HP (capped by `PLAYER_MAX_HEALTH`).
+- Speed pickup: increases the player's unlocked speed cap by `+1`, restores current speed to that cap, and is capped at `PLAYER_SPEED_MAX` (`10`, or `2.5 px/frame`). LT can reduce current speed temporarily; RT can only restore up to the unlocked cap.
+- Power pickup: increases fire rate by `+1` unit (implemented as reducing shot cooldown by 1 frame), capped by `PLAYER_FIRE_RATE_MIN`.
 
 Here is the code to initialize the projectile sprites in ```sprite_mode5.c```.  Note that changed the options parameter in the xreg_vga_mode call to use 8x8 tiles with a 4-bit color index, which is appropriate for our projectile sprites.  We also set up a pool of projectile sprites in XRAM, initializing their positions off-screen and pointing them to the correct sprite data and palette.  This allows us to activate and deactivate these projectile sprites as needed during gameplay to create shooting mechanics.
 ```c

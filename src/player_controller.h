@@ -20,10 +20,13 @@ bool player_controller_can_take_damage(void);
 bool player_controller_is_damage_flash_active(void);
 bool player_controller_is_low_health(void);
 
-// Speed level 1..16: level 1 = 0.25 px/frame, level 16 = 4.0 px/frame.
-// Each step is 0.25 px/frame. Default is 3 (0.75 px/frame).
-// In-game: tap LT to slow down, tap RT to speed up.
+// Speed level 1..10: level 1 = 0.25 px/frame, level 10 = 2.5 px/frame.
+// Each step is 0.25 px/frame. Default is 5 (1.25 px/frame).
+// In-game: tap LT to slow down, tap RT to restore speed up to the unlocked cap.
 void player_controller_set_speed(int level);
 int  player_controller_get_speed(void);
+void player_controller_apply_speed_pickup(void);
+void player_controller_apply_power_pickup(void);
+uint8_t player_controller_get_fire_rate(void);
 
 #endif // PLAYER_CONTROLLER_H

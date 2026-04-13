@@ -36,13 +36,14 @@
 #define PROJECTILE_DATA_SIZE    0x0100U            // 256 bytes (8 frames 8x8 at 4bpp)
 #define PROJECTILE_SPRITE_SIZE_PX   8                 // Projectile sprite is 8x8 pixels
 #define PROJECTILE_FRAME_SIZE   0x0020U            // 32 bytes per 8x8 4bpp frame
-#define PROJECTILE_FRAME_COUNT  2                  // 2 frames for projectile
+#define PROJECTILE_FRAME_COUNT  8                  // 8 frames for projectile/pickups/asteroids
 #define MAX_PROJECTILES         40                  // Max number of projectiles on screen at once
 #define MAX_PLAYER_PROJECTILES  8                   // Slots 0..(MAX_PLAYER_PROJECTILES-1) are reserved for the player
 
 // Projectile movement
 #define PROJECTILE_SPEED_PX     4                   // Pixels per frame
 #define PLAYER_FIRE_RATE        20                  // Frames between player shots (lower = faster)
+#define PLAYER_FIRE_RATE_MIN     6                  // Cap for power pickups (lower = faster)
 #define HUD_TOP_PX              24                  // Rows 0-23 are HUD; bullets expire when y < HUD_TOP_PX
 
 // Player health and damage tuning
