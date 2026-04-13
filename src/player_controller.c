@@ -27,10 +27,13 @@ static uint8_t damage_flash_timer = 0;
 static bool player_destroyed = false;
 static uint8_t death_anim_frame = PLAYER_DEATH_FRAME_START;
 static uint8_t death_anim_tick = 0;
+static uint8_t death_anim_hold_tick = 0;
+static bool death_animation_complete = false;
 
 static bool prev_speed_down = false;
 static bool prev_speed_up = false;
 static uint8_t fire_cooldown = 0;
+static uint8_t damage_flash_phase = 0;
 
 void player_controller_reset_for_new_run(void)
 {
@@ -43,9 +46,13 @@ void player_controller_reset_for_new_run(void)
     player_destroyed = false;
     death_anim_frame = PLAYER_DEATH_FRAME_START;
     death_anim_tick = 0;
+    death_anim_hold_tick = 0;
+    death_animation_complete = false;
     fire_cooldown = 0;
+    damage_flash_phase = 0;
     prev_speed_down = false;
     prev_speed_up = false;
+    sprite_mode5_set_damage_flash(false);
     sprite_mode5_set_frame(0);
     sprite_mode5_set_position((int16_t)(player_x_q8 >> Q8_SHIFT), (int16_t)(player_y_q8 >> Q8_SHIFT));
 }
@@ -110,6 +117,9 @@ void player_controller_apply_damage(uint8_t amount)
         fire_cooldown = 0;
         death_anim_frame = PLAYER_DEATH_FRAME_START;
         death_anim_tick = 0;
+        death_anim_hold_tick = 0;
+        death_animation_complete = false;
+        sprite_mode5_set_damage_flash(false);
         sprite_mode5_set_frame(death_anim_frame);
     }
 }
@@ -122,6 +132,11 @@ uint8_t player_controller_get_health(void)
 bool player_controller_is_destroyed(void)
 {
     return player_destroyed;
+}
+
+bool player_controller_is_death_animation_complete(void)
+{
+    return death_animation_complete;
 }
 
 bool player_controller_can_take_damage(void)
@@ -141,14 +156,63 @@ bool player_controller_is_low_health(void)
 
 void player_controller_update(void)
 {
+    int16_t draw_x;
+    int16_t draw_y;
+    int16_t shake_x = 0;
+    int16_t shake_y = 0;
+
     if (hit_cooldown > 0) {
         hit_cooldown--;
     }
     if (damage_flash_timer > 0) {
         damage_flash_timer--;
+        damage_flash_phase = (uint8_t)(damage_flash_phase + 1);
+
+        // Small alternating jitter while damaged to communicate impact.
+        switch (damage_flash_phase & 0x03u) {
+            case 0:
+                shake_x = -1;
+                shake_y = 0;
+                break;
+            case 1:
+                shake_x = 1;
+                shake_y = 0;
+                break;
+            case 2:
+                shake_x = 0;
+                shake_y = -1;
+                break;
+            default:
+                shake_x = 0;
+                shake_y = 1;
+                break;
+        }
+
+        if ((damage_flash_phase & 0x03u) < 2u) {
+            sprite_mode5_set_damage_flash(true);
+        } else {
+            sprite_mode5_set_damage_flash(false);
+        }
+    } else {
+        sprite_mode5_set_damage_flash(false);
+        damage_flash_phase = 0;
     }
 
     if (player_destroyed) {
+        if (death_animation_complete) {
+            return;
+        }
+
+        if (death_anim_frame >= PLAYER_DEATH_FRAME_END) {
+            if (death_anim_hold_tick < PLAYER_DEATH_FINAL_HOLD_FRAMES) {
+                death_anim_hold_tick++;
+            }
+            if (death_anim_hold_tick >= PLAYER_DEATH_FINAL_HOLD_FRAMES) {
+                death_animation_complete = true;
+            }
+            return;
+        }
+
         death_anim_tick++;
         if (death_anim_tick >= PLAYER_DEATH_FRAME_STEP_FRAMES) {
             death_anim_tick = 0;
@@ -215,5 +279,7 @@ void player_controller_update(void)
     }
     if (player_y_q8 > max_y_q8) player_y_q8 = max_y_q8;
 
-    sprite_mode5_set_position((int16_t)(player_x_q8 >> Q8_SHIFT), (int16_t)(player_y_q8 >> Q8_SHIFT));
+    draw_x = (int16_t)(player_x_q8 >> Q8_SHIFT);
+    draw_y = (int16_t)(player_y_q8 >> Q8_SHIFT);
+    sprite_mode5_set_position((int16_t)(draw_x + shake_x), (int16_t)(draw_y + shake_y));
 }

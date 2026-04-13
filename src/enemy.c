@@ -59,7 +59,9 @@
 
 #define GAME_OVER_LETTER_COUNT 8
 #define GAME_OVER_FIRST_FRAME 7
-#define GAME_OVER_LETTER_SPEED_Q8 ENEMY_MEDIUM_SPEED_Q8
+#define GAME_OVER_LETTER_SPEED_Q8 ENEMY_SLOW_SPEED_Q8
+#define GAME_OVER_LETTER_START_DELAY_FRAMES 8
+#define GAME_OVER_VERTICAL_OFFSET_PX 24
 
 typedef struct {
     bool    active;
@@ -110,6 +112,7 @@ static int16_t tracked_player_vy;
 static bool player_tracking_initialized;
 static bool game_over_mode;
 static bool game_over_animation_complete;
+static uint8_t game_over_letter_start_delay;
 
 typedef struct {
     bool active;
@@ -317,6 +320,12 @@ static void enemy_setup_game_over_letter(uint8_t index, int16_t start_x, int16_t
 static void enemy_update_game_over_letters(void)
 {
     bool all_done = true;
+
+    if (game_over_letter_start_delay > 0) {
+        game_over_letter_start_delay--;
+        game_over_animation_complete = false;
+        return;
+    }
 
     for (uint8_t i = 0; i < GAME_OVER_LETTER_COUNT; ++i) {
         int16_t draw_x;
@@ -1044,6 +1053,7 @@ void enemy_init(void)
     player_tracking_initialized = false;
     game_over_mode = false;
     game_over_animation_complete = false;
+    game_over_letter_start_delay = 0;
 
     for (uint8_t i = 0; i < GAME_OVER_LETTER_COUNT; ++i) {
         game_over_letters[i].active = false;
@@ -1176,10 +1186,11 @@ bool enemy_hit_test_player(int16_t x, int16_t y, int16_t width, int16_t height)
 void enemy_start_game_over_animation(void)
 {
     const int16_t target_start_x = (int16_t)((SCREEN_WIDTH - (GAME_OVER_LETTER_COUNT * ENEMY_SPRITE_SIZE_PX)) / 2);
-    const int16_t target_y = (int16_t)((SCREEN_HEIGHT / 2) - (ENEMY_SPRITE_SIZE_PX / 2));
+    const int16_t target_y = (int16_t)(((SCREEN_HEIGHT / 2) - (ENEMY_SPRITE_SIZE_PX / 2)) + GAME_OVER_VERTICAL_OFFSET_PX);
 
     game_over_mode = true;
     game_over_animation_complete = false;
+    game_over_letter_start_delay = GAME_OVER_LETTER_START_DELAY_FRAMES;
 
     for (uint8_t i = 0; i < MAX_ENEMIES; ++i) {
         enemy_deactivate(i);
@@ -1217,6 +1228,7 @@ void enemy_stop_game_over_animation(void)
 {
     game_over_mode = false;
     game_over_animation_complete = false;
+    game_over_letter_start_delay = 0;
 
     for (uint8_t i = 0; i < GAME_OVER_LETTER_COUNT; ++i) {
         game_over_letters[i].active = false;

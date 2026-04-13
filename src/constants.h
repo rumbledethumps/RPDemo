@@ -50,13 +50,16 @@
 #define PLAYER_LOW_HEALTH_THRESHOLD 12
 #define PLAYER_BULLET_DAMAGE         4
 #define PLAYER_CONTACT_DAMAGE        8
-#define PLAYER_HIT_COOLDOWN_FRAMES  24
-#define PLAYER_HIT_FLASH_FRAMES     18
+#define PLAYER_HIT_COOLDOWN_FRAMES  54
+#define PLAYER_HIT_FLASH_FRAMES     48
+#define PLAYER_HITBOX_SIZE          14
+#define PLAYER_HITBOX_OFFSET         1
 
 // Player destruction animation uses frames 3, 4, 5
 #define PLAYER_DEATH_FRAME_START    3
 #define PLAYER_DEATH_FRAME_END      5
-#define PLAYER_DEATH_FRAME_STEP_FRAMES 8
+#define PLAYER_DEATH_FRAME_STEP_FRAMES 18
+#define PLAYER_DEATH_FINAL_HOLD_FRAMES 24
 
 // HUD health bar mapping: tiles (17,2)..(22,2), tile index 39 (full) .. 47 (empty)
 #define HEALTH_BAR_TILE_X          17
@@ -68,6 +71,7 @@
 
 // Game-over timing
 #define GAME_OVER_TIMEOUT_FRAMES 3600
+#define GAME_OVER_SCROLL_START_DELAY_FRAMES 120
 
 #define ENEMY_DATA             (PROJECTILE_DATA + PROJECTILE_DATA_SIZE) // Address for enemy sprite data
 #define ENEMY_DATA_SIZE        0x0780U              // 1920 bytes (15 frames 16x16 at 4bpp)

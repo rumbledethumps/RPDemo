@@ -12,6 +12,7 @@ unsigned ENEMY_CONFIG;
 static uint8_t player_frame = 0;
 static uint8_t engine_phase = 0;
 static uint8_t engine_tick = 0;
+static bool damage_flash_active = false;
 
 #define PLAYER_ENGINE_PALETTE_INDEX 12
 #define ENGINE_ANIM_TICK_FRAMES 4
@@ -207,4 +208,17 @@ void sprite_mode5_update_engine(bool moving_down)
     }
 
     engine_tick = (uint8_t)((engine_tick + 1) % ENGINE_ANIM_TICK_FRAMES);
+}
+
+void sprite_mode5_set_damage_flash(bool active)
+{
+    uint16_t color;
+
+    if (damage_flash_active == active) {
+        return;
+    }
+
+    damage_flash_active = active;
+    color = active ? player_palette[12] : player_palette[15];
+    sprite_mode5_write_palette_entry(15, color);
 }

@@ -12,6 +12,7 @@ void player_controller_get_center_position(int16_t *x, int16_t *y);
 void player_controller_apply_damage(uint8_t amount);
 uint8_t player_controller_get_health(void);
 bool player_controller_is_destroyed(void);
+bool player_controller_is_death_animation_complete(void);
 bool player_controller_can_take_damage(void);
 bool player_controller_is_damage_flash_active(void);
 bool player_controller_is_low_health(void);

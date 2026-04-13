@@ -64,8 +64,21 @@ bool music_set_track(const char *path) {
     return false;
 }
 
+void music_stop(void)
+{
+    if (g_player.fd >= 0) {
+        vgm_close(&g_player);
+        g_player.fd = -1;
+    }
+}
+
 void music_update(void) {
     bool track_ended = false;
+
+    if (g_player.fd < 0) {
+        return;
+    }
+
     vgm_update(&g_player, 735u, &track_ended, g_status_line, sizeof(g_status_line));
     if (track_ended) {
         puts("Music track ended, restarting...");

@@ -1449,6 +1449,11 @@ HUD palette index `10` is used for health feedback:
 - Damage flash: white blink for a short duration after hit
 - Low health: red override once health drops under threshold
 
+Player sprite feedback:
+- Most ship pixels use palette index `15`
+- On damage, index `15` blinks to the color from index `12` (red accent), then returns
+- Damage flash lasts longer and matches the temporary post-hit invulnerability window
+
 #### Player Destruction Sequence
 
 When health reaches zero, the player sprite runs a destruction sequence using frames:
@@ -1457,6 +1462,21 @@ When health reaches zero, the player sprite runs a destruction sequence using fr
 - `5`
 
 Movement and firing are disabled while destruction is active.
+
+The game now waits for this destruction sequence to finish before entering `GAME OVER` state.
+
+Audio timing during destruction/game-over:
+- Current gameplay music stops immediately when the player is destroyed
+- Player explosion plays first
+- `music/RESOURCE.011.vgm` starts when `GAME OVER` sprites begin their fly-in sequence
+- After `GAME OVER` sprites fully assemble, there is a 2-second hold before fast title-style scroll transition starts
+
+Player collision box tuning:
+- Collision checks now use a centered `14x14` hitbox inside the `16x16` sprite (`+1,+1` offset)
+- Post-hit invulnerability window was increased to better match on-screen flash timing
+
+Title screen player effect:
+- The player sprite engine glow palette animation now runs on the title screen as an ambient effect
 
 #### Game Over State
 
@@ -1471,7 +1491,12 @@ On game-over entry:
 
 Game-over visuals:
 - Enemy frames `7..14` are reused to spell `GAME OVER`
-- Letters fly in from different off-screen origins and converge at center
+- Letters fly in from different off-screen origins and converge more slowly
+- Final word placement is shifted downward to avoid overlapping `PRESS START`
+- Only a brief delay is applied before the letter fly-in begins
+
+Foreground tile behavior on game-over transition:
+- Warp/foreground tiles are restored when transitioning back to fast title-style scrolling
 
 Exit rules from game-over:
 - Start press + release, or

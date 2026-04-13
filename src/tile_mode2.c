@@ -22,6 +22,8 @@ static uint8_t fg_slowdown_tick = 0;
 static bool gameplay_transition_active = false;
 static bool transition_to_gameplay = false;
 static bool warp_tiles_replaced = false;
+static bool warp_tile_backup_valid = false;
+static uint8_t warp_tile_backup[5][32];
 static uint16_t current_health_palette_color = 0;
 static uint8_t health_flash_tick = 0;
 
@@ -108,6 +110,37 @@ static void tile_mode2_copy_tile_bitmap(uint8_t dst_index, uint8_t src_index)
     }
 }
 
+static void tile_mode2_backup_warp_tiles(void)
+{
+    for (uint8_t t = 0; t < 5; ++t) {
+        unsigned src_addr = STARFIELD_TILES_DATA + ((unsigned)(6 + t) * 32u);
+
+        RIA.addr0 = src_addr;
+        RIA.step0 = 1;
+        for (uint8_t i = 0; i < 32; ++i) {
+            warp_tile_backup[t][i] = RIA.rw0;
+        }
+    }
+    warp_tile_backup_valid = true;
+}
+
+static void tile_mode2_restore_warp_tiles(void)
+{
+    if (!warp_tile_backup_valid) {
+        return;
+    }
+
+    for (uint8_t t = 0; t < 5; ++t) {
+        unsigned dst_addr = STARFIELD_TILES_DATA + ((unsigned)(6 + t) * 32u);
+
+        RIA.addr0 = dst_addr;
+        RIA.step0 = 1;
+        for (uint8_t i = 0; i < 32; ++i) {
+            RIA.rw0 = warp_tile_backup[t][i];
+        }
+    }
+}
+
 static void tile_mode2_replace_warp_tiles(void)
 {
     for (uint8_t i = 0; i < 5; ++i) {
@@ -129,6 +162,7 @@ void tile_mode2_init(void) {
     gameplay_transition_active = false;
     transition_to_gameplay = false;
     warp_tiles_replaced = false;
+    warp_tile_backup_valid = false;
     current_health_palette_color = 0;
     health_flash_tick = 0;
     title_palette_tick = 0;
@@ -220,6 +254,7 @@ void tile_mode2_init(void) {
     }
 
     tile_mode2_write_hud_palette_entry(2, title_rainbow_palette[0]);
+    tile_mode2_backup_warp_tiles();
     tile_mode2_set_score(0);
     tile_mode2_set_health(PLAYER_MAX_HEALTH);
     tile_mode2_update_health_fx(false, false);
@@ -265,6 +300,10 @@ void tile_mode2_start_game_over_transition(void)
     fg_slowdown_tick = 0;
     gameplay_transition_active = true;
     transition_to_gameplay = false;
+    if (warp_tiles_replaced) {
+        tile_mode2_restore_warp_tiles();
+        warp_tiles_replaced = false;
+    }
 }
 
 bool tile_mode2_restore_hud_from_rom(void)

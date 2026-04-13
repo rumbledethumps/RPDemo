@@ -79,5 +79,6 @@ void sprite_mode5_set_projectile_frame(uint8_t slot, uint8_t frame_index);
 void sprite_mode5_set_enemy(uint8_t slot, int16_t x, int16_t y, uint8_t type);
 void sprite_mode5_set_frame(uint8_t frame_index);
 void sprite_mode5_update_engine(bool moving_down);
+void sprite_mode5_set_damage_flash(bool active);
 
 #endif // SPRITE_MODE5_H
