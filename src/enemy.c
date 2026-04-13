@@ -1125,7 +1125,7 @@ static void update_pattern6(uint8_t slot)
     enemy_x = FROM_Q8(enemies[slot].x_q8);
     enemy_y = FROM_Q8(enemies[slot].y_q8);
 
-    enemy_compute_aim_velocity(enemy_x, enemy_y, player_x, player_y, ENEMY_MEDIUM_SPEED_Q8, &vx_q8, &vy_q8);
+    enemy_compute_aim_velocity(enemy_x, enemy_y, player_x, player_y, ENEMY_FAST_SPEED_Q8, &vx_q8, &vy_q8);
     enemies[slot].x_q8 += vx_q8;
     enemies[slot].y_q8 += vy_q8;
 

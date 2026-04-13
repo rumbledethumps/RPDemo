@@ -51,6 +51,12 @@ typedef enum {
     BONUS_PHASE_DONE,
 } bonus_phase_t;
 
+typedef enum {
+    PLAYER_SCRIPT_NONE = 0,
+    PLAYER_SCRIPT_TO_BONUS,
+    PLAYER_SCRIPT_FROM_BONUS,
+} player_script_t;
+
 static bonus_phase_t bonus_phase = BONUS_PHASE_IDLE;
 static uint16_t bonus_kills[ENEMY_TYPE_COUNT];
 static uint8_t bonus_multiplier = 1;
@@ -66,11 +72,19 @@ static uint8_t bonus_health_tick = 0;
 static uint8_t bonus_payout_tick = 0;
 static uint32_t bonus_pending_total = 0;
 static bool level_bonus_complete = false;
+static player_script_t player_script = PLAYER_SCRIPT_NONE;
 
 #define BONUS_COUNT_STEP_FRAMES 6
+#define PLAYER_SCRIPT_STEP_PX 2
+#define PLAYER_BONUS_TARGET_X 280
+#define PLAYER_BONUS_TARGET_Y 120
+#define PLAYER_START_X ((SCREEN_WIDTH - PLAYER_SPRITE_SIZE_PX) / 2)
+#define PLAYER_START_Y (((SCREEN_HEIGHT - PLAYER_SPRITE_SIZE_PX) * 2) / 3)
 #define BONUS_ROW_HOLD_FRAMES 36
 #define BONUS_PAYOUT_STEP_FRAMES 3
 #define BONUS_HEALTH_STEP_FRAMES 6
+
+static void begin_level_bonus_sequence(void);
 
 static const char *track_for_level(uint8_t level)
 {
@@ -106,6 +120,66 @@ static void reset_level_bonus_sequence(void)
     bonus_payout_tick = 0;
     bonus_pending_total = 0;
     level_bonus_complete = false;
+    player_script = PLAYER_SCRIPT_NONE;
+}
+
+static void update_player_script(void)
+{
+    int16_t x;
+    int16_t y;
+    int16_t target_x;
+    int16_t target_y;
+
+    if (player_script == PLAYER_SCRIPT_NONE) {
+        return;
+    }
+
+    player_controller_get_position(&x, &y);
+
+    if (player_script == PLAYER_SCRIPT_TO_BONUS) {
+        target_x = PLAYER_BONUS_TARGET_X;
+        target_y = PLAYER_BONUS_TARGET_Y;
+    } else {
+        target_x = PLAYER_START_X;
+        target_y = PLAYER_START_Y;
+    }
+
+    if (x < target_x) {
+        x = (int16_t)(x + PLAYER_SCRIPT_STEP_PX);
+        if (x > target_x) {
+            x = target_x;
+        }
+    } else if (x > target_x) {
+        x = (int16_t)(x - PLAYER_SCRIPT_STEP_PX);
+        if (x < target_x) {
+            x = target_x;
+        }
+    }
+
+    if (y < target_y) {
+        y = (int16_t)(y + PLAYER_SCRIPT_STEP_PX);
+        if (y > target_y) {
+            y = target_y;
+        }
+    } else if (y > target_y) {
+        y = (int16_t)(y - PLAYER_SCRIPT_STEP_PX);
+        if (y < target_y) {
+            y = target_y;
+        }
+    }
+
+    player_controller_set_position(x, y);
+
+    if (x == target_x && y == target_y) {
+        if (player_script == PLAYER_SCRIPT_TO_BONUS) {
+            player_script = PLAYER_SCRIPT_NONE;
+            if (game_state_enter_level_bonus() == GAME_TRANSITION_ENTER_LEVEL_BONUS) {
+                begin_level_bonus_sequence();
+            }
+        } else {
+            player_script = PLAYER_SCRIPT_NONE;
+        }
+    }
 }
 
 static void begin_level_bonus_sequence(void)
@@ -328,6 +402,7 @@ static void start_next_level(void)
     tile_mode2_start_gameplay_transition();
     music_set_track(track_for_level(current_level));
     reset_level_bonus_sequence();
+    player_script = PLAYER_SCRIPT_FROM_BONUS;
 }
 
 int main(void)
@@ -372,6 +447,7 @@ int main(void)
                     game_state_enter_level_bonus();
                 }
             } else if (transition == GAME_TRANSITION_RETURN_TO_TITLE) {
+                game_state_init();
                 reset_to_title_scene();
             }
         }
@@ -391,6 +467,12 @@ int main(void)
             int16_t hitbox_x;
             int16_t hitbox_y;
             uint8_t player_health;
+
+            if (player_script != PLAYER_SCRIPT_NONE) {
+                update_player_script();
+                tile_mode2_update_health_fx(false, player_controller_is_low_health());
+                continue;
+            }
 
             player_controller_update();
             projectile_update();
@@ -436,10 +518,10 @@ int main(void)
                 }
             }
 
-            if (!player_controller_is_destroyed() && enemy_is_level_complete()) {
-                if (game_state_enter_level_bonus() == GAME_TRANSITION_ENTER_LEVEL_BONUS) {
-                    begin_level_bonus_sequence();
-                }
+            if (!player_controller_is_destroyed() && enemy_is_level_complete() && player_script == PLAYER_SCRIPT_NONE) {
+                projectile_init();
+                enemy_clear_all();
+                player_script = PLAYER_SCRIPT_TO_BONUS;
             }
         } else if (game_state_get() == GAME_STATE_LEVEL_BONUS) {
             update_level_bonus_sequence();
@@ -455,15 +537,19 @@ int main(void)
             if (game_over_letters_started) {
                 enemy_update();
 
-                if (!game_over_scroll_started && enemy_is_game_over_animation_complete()) {
-                    if (game_over_scroll_delay_timer < GAME_OVER_SCROLL_START_DELAY_FRAMES) {
-                        game_over_scroll_delay_timer++;
-                    } else {
-                        tile_mode2_start_game_over_transition();
-                        tile_mode2_restore_hud_from_rom();
-                        tile_mode2_set_score(score_get());
-                        tile_mode2_set_health(0);
-                        game_over_scroll_started = true;
+                if (enemy_is_game_over_animation_complete()) {
+                    sprite_mode5_hide_player();
+
+                    if (!game_over_scroll_started) {
+                        if (game_over_scroll_delay_timer < GAME_OVER_SCROLL_START_DELAY_FRAMES) {
+                            game_over_scroll_delay_timer++;
+                        } else {
+                            tile_mode2_start_game_over_transition();
+                            tile_mode2_restore_hud_from_rom();
+                            tile_mode2_set_score(score_get());
+                            tile_mode2_set_health(0);
+                            game_over_scroll_started = true;
+                        }
                     }
                 }
             }

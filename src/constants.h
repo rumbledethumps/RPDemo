@@ -70,7 +70,8 @@
 #define HEALTH_PER_BAR_TILE         8
 
 // Game-over timing
-#define GAME_OVER_TIMEOUT_FRAMES 3600
+// 108.8 seconds at 60 FPS.
+#define GAME_OVER_TIMEOUT_FRAMES 6528
 #define GAME_OVER_SCROLL_START_DELAY_FRAMES 120
 
 #define ENEMY_DATA             (PROJECTILE_DATA + PROJECTILE_DATA_SIZE) // Address for enemy sprite data

@@ -79,6 +79,26 @@ void player_controller_get_position(int16_t *x, int16_t *y)
     }
 }
 
+void player_controller_set_position(int16_t x, int16_t y)
+{
+    if (x < 0) {
+        x = 0;
+    }
+    if (x > (int16_t)(SCREEN_WIDTH - PLAYER_SPRITE_SIZE_PX)) {
+        x = (int16_t)(SCREEN_WIDTH - PLAYER_SPRITE_SIZE_PX);
+    }
+    if (y < HUD_TOP_PX) {
+        y = HUD_TOP_PX;
+    }
+    if (y > (int16_t)(SCREEN_HEIGHT - PLAYER_SPRITE_SIZE_PX)) {
+        y = (int16_t)(SCREEN_HEIGHT - PLAYER_SPRITE_SIZE_PX);
+    }
+
+    player_x_q8 = ((int32_t)x) << Q8_SHIFT;
+    player_y_q8 = ((int32_t)y) << Q8_SHIFT;
+    sprite_mode5_set_position(x, y);
+}
+
 void player_controller_get_center_position(int16_t *x, int16_t *y)
 {
     int16_t top_left_x = (int16_t)(player_x_q8 >> Q8_SHIFT);
