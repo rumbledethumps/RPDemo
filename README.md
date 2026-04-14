@@ -19,7 +19,7 @@ This is a demo game for the RP6502, built with the LLVM-MOS toolchain.  The game
 
 Get started by using the vscode-llvm-mos template from https://github.com/picocomputer/vscode-llvm-mos.  Find the "Use this template" button and follow the instructions to create a new repository.  
 
-Once you have your repository set up, we are going to update CMakeLists.txt to build the demo game.  Update the contents of CMakeLists.txt to have the name of the game you want to make.  In this example, we are going to make a game called RPDemo.  The CMakeLists.txt file should look something like this:
+Once you have your repository set up, we are going to update CMakeLists.txt to build the demo game.  Update the contents of CMakeLists.txt to have the name of the game you want to make.  In this example, we are going to make a game called RPStarHopper.  The CMakeLists.txt file should look something like this:
 
 ```cmake
 cmake_minimum_required(VERSION 3.18)
@@ -29,27 +29,27 @@ add_subdirectory(tools)
 set(LLVM_MOS_PLATFORM rp6502)
 find_package(llvm-mos-sdk REQUIRED)
 
-project(RPDemo C CXX ASM)
+project(RPStarHopper C CXX ASM)
 
-add_executable(RPDemo)
+add_executable(RPStarHopper)
 
-rp6502_asset(RPDemo help src/help.txt)
+rp6502_asset(RPStarHopper help src/help.txt)
 
-rp6502_executable(RPDemo 
+rp6502_executable(RPStarHopper 
     DATA file 
     RESET file
 )
 
-target_sources(RPDemo PRIVATE
+target_sources(RPStarHopper PRIVATE
     src/main.c
 )
 ```
 
-At this point, you should be able to build the project in VS Code with the build button and run it on your Picocomputer via F5 or the run button.  You can also run it from the command line with the following command:
+At this point, you should be able to build the project in VS Code with the build button and run it on your Picocomputer via F5 or the run button.  You can also run it from the command line with one of the following:
 ```
-python3 ./tools/rp6502.py run build/RPDemo.rp6502
+python3 ./tools/rp6502.py run build/RPStarHopper.rp6502
+python3 ./tools/rp6502_mac.py run build/RPStarHopper.rp6502
 ```
-[Note: If you are on a Mac, you can use ```rp6502_mac.py``` found in the tools directory of this repository.]
 
 ## Setting up Graphics
 
@@ -115,19 +115,19 @@ add_subdirectory(tools)
 set(LLVM_MOS_PLATFORM rp6502)
 find_package(llvm-mos-sdk REQUIRED)
 
-project(RPDemo C CXX ASM)
+project(RPStarHopper C CXX ASM)
 
-add_executable(RPDemo)
+add_executable(RPStarHopper)
 
-rp6502_asset(RPDemo 0x10000 images/Player_4bpp.bin)
-rp6502_asset(RPDemo help src/help.txt)
+rp6502_asset(RPStarHopper 0x10000 images/Player_4bpp.bin)
+rp6502_asset(RPStarHopper help src/help.txt)
 
-rp6502_executable(RPDemo 
+rp6502_executable(RPStarHopper 
     DATA file 
     RESET file
 )
 
-target_sources(RPDemo PRIVATE
+target_sources(RPStarHopper PRIVATE
     src/main.c
 )
 ```
@@ -250,7 +250,7 @@ void sprite_mode5_init(void);
 We need to update our CMakeLists.txt to include the new source file:
 
 ```cmake
-target_sources(RPDemo PRIVATE
+target_sources(RPStarHopper PRIVATE
     src/main.c
     src/sprite_mode5.c
 )
@@ -593,11 +593,11 @@ Notice how we have defined the XRAM layout for all of our assets, including the 
 Use the spreadsheet to keep track of your XRAM layout and do the hex math for you.  This will help you avoid mistakes and make it easier to manage your assets as your game grows in complexity.  Next we update CMakeLists.txt based on the output of the spreadsheet to include the new source files:
 
 ```cmake
-rp6502_asset(RPDemo 0x10000 images/Player_4bpp.bin)
-rp6502_asset(RPDemo 0x10180 images/StarFields_BG_map.bin)
-rp6502_asset(RPDemo 0x10AE0 images/StarFields_FG_map.bin)
-rp6502_asset(RPDemo 0x11440 images/StarFields_HUD_map.bin)
-rp6502_asset(RPDemo 0x118F0 images/StarFields_tiles_4bpp.bin)
+rp6502_asset(RPStarHopper 0x10000 images/Player_4bpp.bin)
+rp6502_asset(RPStarHopper 0x10180 images/StarFields_BG_map.bin)
+rp6502_asset(RPStarHopper 0x10AE0 images/StarFields_FG_map.bin)
+rp6502_asset(RPStarHopper 0x11440 images/StarFields_HUD_map.bin)
+rp6502_asset(RPStarHopper 0x118F0 images/StarFields_tiles_4bpp.bin)
 ```
 
 If we look back at our main loop, we are calling ```tile_mode2_update_scroll();``` every frame.  This function will update the scroll position of the tilemaps to create a parallax scrolling effect.  The background layer will scroll slower than the foreground layer, which creates a sense of depth and movement in the scene.  You can customize the scrolling logic in ```tile_mode2_update_scroll()``` to create different scrolling patterns or to scroll based on player movement or other game events.  With the tilemaps set up and scrolling, you should now see a starfield background with a faster scrolling foreground layer, and a HUD layer at the top of the screen. 
@@ -906,7 +906,7 @@ Once you have added this code, you should see the player sprite change its frame
 
 We can add a new asset for our projectile sprite data, and then set up a new sprite configuration in XRAM for the projectiles.  We can then create a pool of projectile sprites that we can activate and deactivate as needed to create bullets that the player can shoot.  This is a common technique in game development called object pooling, which allows us to reuse a fixed number of sprite instances for our bullets without needing to constantly create and destroy sprites, which can be expensive in terms of performance.
 ```c
-rp6502_asset(RPDemo 0x13470 images/Projectiles_4bpp.bin)
+rp6502_asset(RPStarHopper 0x13470 images/Projectiles_4bpp.bin)
 ```
 
 Here is the layout for the projectile sprite data and configuration in XRAM:
@@ -1079,7 +1079,7 @@ The example below shows how we can implement a simple game loop with a title scr
 
             if (transition == GAME_TRANSITION_START_GAME) {
                 tile_mode2_start_gameplay_transition();
-                music_set_track("music/RESOURCE.005.vgm");
+                music_set_track("ROM:RESOURCE.005.vgm");
             }
         }
 
@@ -1116,7 +1116,7 @@ The implementation has four parts:
 First, add the enemy sprite sheet to CMake:
 
 ```cmake
-rp6502_asset(RPDemo 0x13930 images/Enemies_4bpp.bin)
+rp6502_asset(RPStarHopper 0x13930 images/Enemies_4bpp.bin)
 ```
 
 Then define enemy layout in constants.h:

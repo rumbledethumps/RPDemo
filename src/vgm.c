@@ -10,6 +10,8 @@
 
 #include "opl.h"
 
+#define VGM_MAX_COMMANDS_PER_UPDATE 256u
+
 static uint32_t read_u32_le(const uint8_t *p) {
     return (uint32_t)p[0] | ((uint32_t)p[1] << 8u) | ((uint32_t)p[2] << 16u) | ((uint32_t)p[3] << 24u);
 }
@@ -230,6 +232,7 @@ void vgm_update(vgm_player_t *player,
                 bool *track_ended,
                 char *status_line,
                 uint16_t status_size) {
+    uint16_t commands_executed = 0;
     *track_ended = false;
 
     if (player->fd < 0 || player->reached_end) {
@@ -247,8 +250,15 @@ void vgm_update(vgm_player_t *player,
             continue;
         }
 
+        if (commands_executed >= VGM_MAX_COMMANDS_PER_UPDATE) {
+            // Yield to the main loop to keep gameplay/input responsive.
+            break;
+        }
+
         if (!parse_next_command(player, track_ended, status_line, status_size)) {
             break;
         }
+
+        commands_executed++;
     }
 }
