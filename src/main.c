@@ -28,7 +28,7 @@ static bool init_graphics(void)
     sprite_mode5_init_enemies();
     projectile_init();
     enemy_init();
-    score_init();
+    score_init(); 
 
     return true;
 }
@@ -61,7 +61,7 @@ int main(void)
         // 2. INPUT
         handle_input();
 
-        gameplay_frame(is_action_pressed(0, ACTION_BTN_START));
+        gameplay_frame(is_action_pressed(0, ACTION_BTN_START)); 
     }
 
     return 0;

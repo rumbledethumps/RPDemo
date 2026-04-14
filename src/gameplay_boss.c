@@ -15,10 +15,12 @@
 
 #define BOSS_ENTRY_SPEED_PX 2
 #define BOSS_ARENA_MARGIN_X 8
-#define BOSS_ARENA_TOP_Y 8
+#define BOSS_ARENA_TOP_Y 24
 #define BOSS_ARENA_BOTTOM_Y ((SCREEN_HEIGHT / 3) - (BOSS_GRID_ROWS * ENEMY_SPRITE_SIZE_PX))
 #define BOSS_TRACK_DEADZONE_PX 12
-#define BOSS_TRACK_FAST_DELTA_PX 24
+#define BOSS_TRACK_FAST_DELTA_PX 18
+#define BOSS_TRACK_STEP_PX 2
+#define BOSS_TRACK_FAST_STEP_PX 4
 #define BOSS_VERTICAL_STEP_FRAMES 12
 #define BOSS_ANIM_STEP_FRAMES 24
 #define BOSS_ATTACK_CYCLE_FRAMES 180
@@ -32,7 +34,7 @@
 static bool boss_active = false;
 static int16_t boss_x = BOSS_START_X;
 static int16_t boss_y = BOSS_START_Y;
-static int8_t boss_vx = 1;
+static int8_t boss_vx = BOSS_TRACK_STEP_PX;
 static int8_t boss_vy = 1;
 static uint8_t boss_anim_tick = 0;
 static uint8_t boss_frame_set = BOSS_FRAME_SET_A_BASE;
@@ -63,7 +65,7 @@ void gameplay_boss_begin(gameplay_runtime_t *state)
     boss_active = true;
     boss_x = BOSS_START_X;
     boss_y = (int16_t)(-boss_height);
-    boss_vx = 1;
+    boss_vx = BOSS_TRACK_STEP_PX;
     boss_vy = 1;
     boss_anim_tick = 0;
     boss_frame_set = BOSS_FRAME_SET_A_BASE;
@@ -137,6 +139,17 @@ void gameplay_boss_update(gameplay_runtime_t *state)
         }
     }
 
+    // TEMP: boss-body contact damage disabled while debugging input/start instability.
+    // if (player_controller_can_take_damage()) {
+    //     if (hitbox_x < (int16_t)(boss_x + (BOSS_GRID_COLS * ENEMY_SPRITE_SIZE_PX)) &&
+    //         (int16_t)(hitbox_x + PLAYER_HITBOX_SIZE) > boss_x &&
+    //         hitbox_y < (int16_t)(boss_y + (BOSS_GRID_ROWS * ENEMY_SPRITE_SIZE_PX)) &&
+    //         (int16_t)(hitbox_y + PLAYER_HITBOX_SIZE) > boss_y) {
+    //         player_controller_apply_damage(PLAYER_CONTACT_DAMAGE);
+    //         took_damage = true;
+    //     }
+    // }
+
     if (took_damage) {
         score_reset_multiplier();
     }
@@ -173,7 +186,7 @@ void gameplay_boss_update(gameplay_runtime_t *state)
         if (boss_y >= BOSS_ARENA_TOP_Y) {
             boss_y = BOSS_ARENA_TOP_Y;
             boss_entering = false;
-            boss_vx = 1;
+            boss_vx = BOSS_TRACK_STEP_PX;
             boss_vy = 1;
         }
     } else {
@@ -190,17 +203,17 @@ void gameplay_boss_update(gameplay_runtime_t *state)
         dx = (int16_t)(player_center_x - boss_center_x);
 
         if (dx > BOSS_TRACK_FAST_DELTA_PX) {
-            step_x = 2;
-            boss_vx = 1;
+            step_x = BOSS_TRACK_FAST_STEP_PX;
+            boss_vx = BOSS_TRACK_STEP_PX;
         } else if (dx > BOSS_TRACK_DEADZONE_PX) {
-            step_x = 1;
-            boss_vx = 1;
+            step_x = BOSS_TRACK_STEP_PX;
+            boss_vx = BOSS_TRACK_STEP_PX;
         } else if (dx < -BOSS_TRACK_FAST_DELTA_PX) {
-            step_x = -2;
-            boss_vx = -1;
+            step_x = (int8_t)-BOSS_TRACK_FAST_STEP_PX;
+            boss_vx = (int8_t)-BOSS_TRACK_STEP_PX;
         } else if (dx < -BOSS_TRACK_DEADZONE_PX) {
-            step_x = -1;
-            boss_vx = -1;
+            step_x = (int8_t)-BOSS_TRACK_STEP_PX;
+            boss_vx = (int8_t)-BOSS_TRACK_STEP_PX;
         } else {
             // Slight drift while aligned so the fight does not become perfectly static.
             step_x = boss_vx;
@@ -214,10 +227,10 @@ void gameplay_boss_update(gameplay_runtime_t *state)
 
         if (boss_x <= BOSS_ARENA_MARGIN_X) {
             boss_x = BOSS_ARENA_MARGIN_X;
-            boss_vx = 1;
+            boss_vx = BOSS_TRACK_STEP_PX;
         } else if (boss_x >= right_bound) {
             boss_x = right_bound;
-            boss_vx = -1;
+            boss_vx = (int8_t)-BOSS_TRACK_STEP_PX;
         }
 
         if (boss_y <= BOSS_ARENA_TOP_Y) {
@@ -301,7 +314,7 @@ void gameplay_boss_reset(void)
     boss_active = false;
     boss_x = BOSS_START_X;
     boss_y = BOSS_START_Y;
-    boss_vx = 1;
+    boss_vx = BOSS_TRACK_STEP_PX;
     boss_vy = 1;
     boss_anim_tick = 0;
     boss_frame_set = BOSS_FRAME_SET_A_BASE;
