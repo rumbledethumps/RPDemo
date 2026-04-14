@@ -67,9 +67,9 @@ static const uint16_t enemy_palette[16] = {
     0xA32A,
     0xDD29,
     0xAD32,
-    0x0020,
-    0x0020,
-    0x0020,
+    0x226A,
+    0x5AE9,
+    0xA269,
 };
 
 void sprite_mode5_init(void);

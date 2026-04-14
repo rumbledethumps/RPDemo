@@ -18,9 +18,9 @@ static const uint16_t enemies_4bpp[16] = {
     0xA32A,
     0xDD29,
     0xAD32,
-    0x0020,
-    0x0020,
-    0x0020,
+    0x226A,
+    0x5AE9,
+    0xA269,
 };
 
 #endif // ENEMIES_4BPP_H
