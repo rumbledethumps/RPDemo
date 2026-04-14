@@ -149,7 +149,7 @@ I personally like to track assets using a ```constants.h``` file.
 #define SPRITE_DATA_START       0x0000U            // Starting address in XRAM for sprite data
 
 #define PLAYER_DATA            (SPRITE_DATA_START) // Address for main tile bitmap data
-#define PLAYER_DATA_SIZE        0x0080U            // 128 bytes (16x16 at 4bpp)
+#define PLAYER_DATA_SIZE        0x0300U            // 768 bytes (6 frames 16x16 at 4bpp)
 #define PLAYER_SPRITE_SIZE_PX   16                 // Player sprite is 16x16 pixels
 
 #define SPRITE_DATA_END        (PLAYER_DATA + PLAYER_DATA_SIZE) // End address for sprite data
@@ -161,7 +161,7 @@ I personally like to track assets using a ```constants.h``` file.
 #endif // CONSTANTS_H
 ```
 
-This file defines some constants for our game, including the screen dimensions and the memory layout for our sprite data.  We have defined a section of XRAM starting at 0x0000 for our sprite data, and we have allocated 128 bytes for our player sprite, which is a 16x16 pixel sprite at 4 bits per pixel (4bpp).  This means that each pixel takes up 4 bits, so we can fit two pixels in one byte.  Therefore, a 16x16 sprite will require 128 bytes of memory (16 * 16 * 4 bits / 8 bits per byte = 128 bytes).  If you use the Spreadsheet all the Hex math is done for you.  
+This file defines some constants for our game, including the screen dimensions and the memory layout for our sprite data.  We have defined a section of XRAM starting at 0x0000 for our sprite data, and we have allocated 768 bytes for the player sprite sheet, which is six 16x16 frames at 4 bits per pixel (4bpp).  Each 16x16 frame requires 128 bytes (16 * 16 * 4 bits / 8 bits per byte = 128 bytes), and 6 frames total 768 bytes.  If you use the Spreadsheet all the Hex math is done for you.  
 
 We have also defined XRAM space for the player's palette, which is 32 bytes (16 colors * 2 bytes per color = 32 bytes).  The palette will be stored at address 0xFC00.  We will load our custom palette data into this location in XRAM and then point the VGA system to it when we set up our sprite.  Notice that in CMakeLists.txt we have placed the sprite at 0x10000, but in our constants.h we have defined the sprite data to start at 0x0000. The offset is handled by rp6502.h XRAM calls.
 
@@ -538,10 +538,10 @@ Next we update ```constants.h``` to include the new assets and the XRAM layout f
 #define SPRITE_DATA_START       0x0000U            // Starting address in XRAM for sprite data
 
 #define PLAYER_DATA            (SPRITE_DATA_START) // Address for main tile bitmap data
-#define PLAYER_DATA_SIZE        0x0180U            // 384 bytes (3 frames 16x16 at 4bpp)
+#define PLAYER_DATA_SIZE        0x0300U            // 768 bytes (6 frames 16x16 at 4bpp)
 #define PLAYER_SPRITE_SIZE_PX   16                 // Player sprite is 16x16 pixels
 #define PLAYER_FRAME_SIZE       0x0080U            // 128 bytes per 16x16 4bpp frame
-#define PLAYER_FRAME_COUNT      3                  // idle, left, right
+#define PLAYER_FRAME_COUNT      6                  // idle, left, right, explode frames (3, 4, 5)
 
 #define STARFIELD_BG_DATA      (PLAYER_DATA + PLAYER_DATA_SIZE) // Address for starfield background tilemap
 #define STARFIELD_BG_SIZE       0x0960U            // 2400 bytes (40x60 tilemap)
@@ -594,10 +594,10 @@ Use the spreadsheet to keep track of your XRAM layout and do the hex math for yo
 
 ```cmake
 rp6502_asset(RPStarHopper 0x10000 images/Player_4bpp.bin)
-rp6502_asset(RPStarHopper 0x10180 images/StarFields_BG_map.bin)
-rp6502_asset(RPStarHopper 0x10AE0 images/StarFields_FG_map.bin)
-rp6502_asset(RPStarHopper 0x11440 images/StarFields_HUD_map.bin)
-rp6502_asset(RPStarHopper 0x118F0 images/StarFields_tiles_4bpp.bin)
+rp6502_asset(RPStarHopper 0x10300 images/StarFields_BG_map.bin)
+rp6502_asset(RPStarHopper 0x10C60 images/StarFields_FG_map.bin)
+rp6502_asset(RPStarHopper 0x115C0 images/StarFields_HUD_map.bin)
+rp6502_asset(RPStarHopper 0x11A70 images/StarFields_tiles_4bpp.bin)
 ```
 
 If we look back at our main loop, we are calling ```tile_mode2_update_scroll();``` every frame.  This function will update the scroll position of the tilemaps to create a parallax scrolling effect.  The background layer will scroll slower than the foreground layer, which creates a sense of depth and movement in the scene.  You can customize the scrolling logic in ```tile_mode2_update_scroll()``` to create different scrolling patterns or to scroll based on player movement or other game events.  With the tilemaps set up and scrolling, you should now see a starfield background with a faster scrolling foreground layer, and a HUD layer at the top of the screen. 
@@ -906,16 +906,16 @@ Once you have added this code, you should see the player sprite change its frame
 
 We can add a new asset for our projectile sprite data, and then set up a new sprite configuration in XRAM for the projectiles.  We can then create a pool of projectile sprites that we can activate and deactivate as needed to create bullets that the player can shoot.  This is a common technique in game development called object pooling, which allows us to reuse a fixed number of sprite instances for our bullets without needing to constantly create and destroy sprites, which can be expensive in terms of performance.
 ```c
-rp6502_asset(RPStarHopper 0x13470 images/Projectiles_4bpp.bin)
+rp6502_asset(RPStarHopper 0x13A70 images/Projectiles_4bpp.bin)
 ```
 
 Here is the layout for the projectile sprite data and configuration in XRAM:
 ```c
 #define PROJECTILE_DATA        (STARFIELD_TILES_DATA + STARFIELD_TILES_SIZE) // Address for projectile sprite data
-#define PROJECTILE_DATA_SIZE    0x0100U            // 256 bytes (8 frame 8x8 at 4bpp)
+#define PROJECTILE_DATA_SIZE    0x0140U            // 320 bytes (10 frames 8x8 at 4bpp)
 #define PROJECTILE_SPRITE_SIZE_PX   8                 // Projectile sprite is 8x8 pixels
 #define PROJECTILE_FRAME_SIZE   0x0020U            // 32 bytes per 8x8 4bpp frame
-#define PROJECTILE_FRAME_COUNT  8                  // 8 frames for projectile/pickups/asteroids
+#define PROJECTILE_FRAME_COUNT  10                 // 10 frames for projectile/pickups/asteroids
 #define MAX_PROJECTILES         40                  // Max number of projectiles on screen at once
 
 #define SPRITE_DATA_END        (PROJECTILE_DATA + PROJECTILE_DATA_SIZE) // End of sprite data
@@ -1116,14 +1116,14 @@ The implementation has four parts:
 First, add the enemy sprite sheet to CMake:
 
 ```cmake
-rp6502_asset(RPStarHopper 0x13930 images/Enemies_4bpp.bin)
+rp6502_asset(RPStarHopper 0x13BB0 images/Enemies_4bpp.bin)
 ```
 
 Then define enemy layout in constants.h:
 
 ```c
 #define ENEMY_DATA             (PROJECTILE_DATA + PROJECTILE_DATA_SIZE)
-#define ENEMY_DATA_SIZE        0x1900U              // 50 frames * 128 bytes
+#define ENEMY_DATA_SIZE        0x2200U              // 68 frames * 128 bytes
 #define ENEMY_SPRITE_SIZE_PX   16
 #define ENEMY_FRAME_SIZE       0x0080U
 #define ENEMY_TYPE_COUNT       7
@@ -1135,7 +1135,7 @@ Then define enemy layout in constants.h:
 extern unsigned ENEMY_CONFIG;
 ```
 
-`ENEMY_DATA_SIZE` is 896 bytes because each 16x16 frame at 4bpp is 128 bytes and we have 7 types.
+`ENEMY_DATA_SIZE` is 8704 bytes because each 16x16 frame at 4bpp is 128 bytes and the current sprite sheet uses 68 frames.
 
 Enemy frame layout (per type):
 - Base frames for types `0..6`: `0, 6, 12, 18, 24, 30, 36`
