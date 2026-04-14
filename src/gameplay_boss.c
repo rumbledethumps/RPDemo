@@ -8,6 +8,7 @@
 #include "music.h"
 #include "player_controller.h"
 #include "projectile.h"
+#include "rng.h"
 #include "score.h"
 #include "sprite_mode5.h"
 #include "tile_mode2.h"
@@ -44,6 +45,13 @@
 #define BOSS_WAVE_ASTEROID_COUNT 2
 #define BOSS_ASTEROID_WAVE_THIRD 3
 #define BOSS_ASTEROID_WAVE_SIXTH 6
+#define BOSS_DEFEAT_SEQUENCE_FRAMES (3 * 60)
+#define BOSS_DEFEAT_EXPLOSION_INTERVAL_FRAMES 3
+#define BOSS_DEFEAT_EXPLOSIONS_PER_BURST 3
+#define BOSS_DEFEAT_EXPLOSION_MARGIN 4
+#define PLAYER_SCRIPT_STEP_PX 1
+#define PLAYER_START_X ((SCREEN_WIDTH - PLAYER_SPRITE_SIZE_PX) / 2)
+#define PLAYER_START_Y (((SCREEN_HEIGHT - PLAYER_SPRITE_SIZE_PX) * 2) / 3)
 
 static bool boss_active = false;
 static int16_t boss_x = BOSS_START_X;
@@ -65,6 +73,10 @@ static uint8_t boss_wave_type = 0;
 static uint8_t boss_wave_inter_spawn_timer = 0;
 static bool boss_wave_active = false;
 static uint8_t boss_wave_count = 0;
+static bool boss_defeat_sequence_active = false;
+static uint16_t boss_defeat_timer = 0;
+static uint8_t boss_defeat_spawn_timer = 0;
+static uint16_t boss_defeat_rng = 0xC35Fu;
 
 static const int16_t boss_pivot_x[BOSS_PIVOT_COUNT] = {
     BOSS_PIVOT_LEFT_X,
@@ -87,6 +99,98 @@ static const int16_t boss_pivot_y[BOSS_PIVOT_COUNT] = {
     BOSS_PIVOT_BOTTOM_Y,
     BOSS_PIVOT_TOP_Y,
 };
+
+static void boss_move_player_to_start(void)
+{
+    int16_t x;
+    int16_t y;
+
+    player_controller_get_position(&x, &y);
+
+    if (x < PLAYER_START_X) {
+        x = (int16_t)(x + PLAYER_SCRIPT_STEP_PX);
+        if (x > PLAYER_START_X) {
+            x = PLAYER_START_X;
+        }
+    } else if (x > PLAYER_START_X) {
+        x = (int16_t)(x - PLAYER_SCRIPT_STEP_PX);
+        if (x < PLAYER_START_X) {
+            x = PLAYER_START_X;
+        }
+    }
+
+    if (y < PLAYER_START_Y) {
+        y = (int16_t)(y + PLAYER_SCRIPT_STEP_PX);
+        if (y > PLAYER_START_Y) {
+            y = PLAYER_START_Y;
+        }
+    } else if (y > PLAYER_START_Y) {
+        y = (int16_t)(y - PLAYER_SCRIPT_STEP_PX);
+        if (y < PLAYER_START_Y) {
+            y = PLAYER_START_Y;
+        }
+    }
+
+    player_controller_set_position(x, y);
+    sprite_mode5_set_frame(0);
+    sprite_mode5_update_engine(false);
+}
+
+static void boss_spawn_defeat_explosions(void)
+{
+    int16_t boss_left = (int16_t)(boss_x - BOSS_DEFEAT_EXPLOSION_MARGIN);
+    int16_t boss_top = (int16_t)(boss_y - BOSS_DEFEAT_EXPLOSION_MARGIN);
+    int16_t boss_right = (int16_t)(boss_x + (BOSS_GRID_COLS * ENEMY_SPRITE_SIZE_PX) - PROJECTILE_SPRITE_SIZE_PX + BOSS_DEFEAT_EXPLOSION_MARGIN);
+    int16_t boss_bottom = (int16_t)(boss_y + (BOSS_GRID_ROWS * ENEMY_SPRITE_SIZE_PX) - PROJECTILE_SPRITE_SIZE_PX + BOSS_DEFEAT_EXPLOSION_MARGIN);
+
+    if (boss_left < 0) {
+        boss_left = 0;
+    }
+    if (boss_top < HUD_TOP_PX) {
+        boss_top = HUD_TOP_PX;
+    }
+    if (boss_right > (int16_t)(SCREEN_WIDTH - PROJECTILE_SPRITE_SIZE_PX)) {
+        boss_right = (int16_t)(SCREEN_WIDTH - PROJECTILE_SPRITE_SIZE_PX);
+    }
+    if (boss_bottom > (int16_t)(SCREEN_HEIGHT - PROJECTILE_SPRITE_SIZE_PX)) {
+        boss_bottom = (int16_t)(SCREEN_HEIGHT - PROJECTILE_SPRITE_SIZE_PX);
+    }
+
+    for (uint8_t i = 0; i < BOSS_DEFEAT_EXPLOSIONS_PER_BURST; ++i) {
+        int16_t ex = rng_range(&boss_defeat_rng, boss_left, boss_right);
+        int16_t ey = rng_range(&boss_defeat_rng, boss_top, boss_bottom);
+        projectile_spawn_explosion(ex, ey);
+    }
+}
+
+static void boss_update_defeat_sequence(gameplay_runtime_t *state)
+{
+    (void)state;
+
+    boss_move_player_to_start();
+
+    if (boss_defeat_spawn_timer == 0) {
+        boss_spawn_defeat_explosions();
+        boss_defeat_spawn_timer = BOSS_DEFEAT_EXPLOSION_INTERVAL_FRAMES;
+    } else {
+        boss_defeat_spawn_timer--;
+    }
+
+    projectile_update();
+    tile_mode2_update_health_fx(false, player_controller_is_low_health());
+    sprite_mode5_set_boss_weakspot_flash(false);
+    sprite_mode5_show_boss(boss_x, boss_y, BOSS_FRAME_SET_A_BASE);
+
+    if (boss_defeat_timer > 0) {
+        boss_defeat_timer--;
+    }
+
+    if (boss_defeat_timer == 0) {
+        projectile_init();
+        boss_defeat_sequence_active = false;
+        boss_retreating = true;
+    }
+}
 
 static void boss_fire_dual_projectiles(void)
 {
@@ -125,6 +229,10 @@ void gameplay_boss_begin(gameplay_runtime_t *state)
     boss_wave_inter_spawn_timer = 0;
     boss_wave_active = false;
     boss_wave_count = 0;
+    boss_defeat_sequence_active = false;
+    boss_defeat_timer = 0;
+    boss_defeat_spawn_timer = 0;
+    boss_defeat_rng = 0xC35Fu;
     state->level_banner_visible = false;
     state->hud_health_last = player_controller_get_health();
     music_set_track(BOSS_STAGE_MUSIC_TRACK);
@@ -170,6 +278,11 @@ void gameplay_boss_update(gameplay_runtime_t *state)
     }
 
     if (!boss_active) {
+        return;
+    }
+
+    if (boss_defeat_sequence_active) {
+        boss_update_defeat_sequence(state);
         return;
     }
 
@@ -362,7 +475,20 @@ void gameplay_boss_update(gameplay_runtime_t *state)
 
     if (boss_health == 0) {
         state->level_banner_visible = true;
-        boss_retreating = true;
+        boss_defeat_sequence_active = true;
+        boss_defeat_timer = BOSS_DEFEAT_SEQUENCE_FRAMES;
+        boss_defeat_spawn_timer = 0;
+        boss_defeat_rng = (uint16_t)(0xC35Fu ^ (uint16_t)boss_x ^ ((uint16_t)boss_y << 1));
+        boss_retreating = false;
+        boss_wave_active = false;
+        boss_wave_spawned = 0;
+        boss_wave_inter_spawn_timer = 0;
+        boss_attack_cycle_timer = 0;
+        boss_attack_fire_timer = 0;
+        boss_attack_volleys_fired = 0;
+        enemy_clear_all();
+        projectile_init();
+        sprite_mode5_set_boss_weakspot_flash(false);
         return;
     }
 
@@ -436,6 +562,10 @@ void gameplay_boss_reset(void)
     boss_wave_inter_spawn_timer = 0;
     boss_wave_active = false;
     boss_wave_count = 0;
+    boss_defeat_sequence_active = false;
+    boss_defeat_timer = 0;
+    boss_defeat_spawn_timer = 0;
+    boss_defeat_rng = 0xC35Fu;
     sprite_mode5_set_boss_palette_active(false);
     tile_mode2_set_boss_hud_visible(false);
     sprite_mode5_hide_boss();

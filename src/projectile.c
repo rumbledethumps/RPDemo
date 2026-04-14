@@ -13,6 +13,7 @@ typedef enum {
     PROJECTILE_OWNER_ENEMY,
     PROJECTILE_OWNER_ASTEROID,
     PROJECTILE_OWNER_PICKUP,
+    PROJECTILE_OWNER_EXPLOSION,
 } projectile_owner_t;
 
 typedef struct {
@@ -37,6 +38,7 @@ static Projectile projectiles[MAX_PROJECTILES];
 #define ASTEROID_PICKUP_HITBOX_OFFSET 0
 #define ASTEROID_PICKUP_HITBOX_SIZE 8
 #define ASTEROID_ANIM_TICK_FRAMES 6
+#define EXPLOSION_ANIM_TICK_FRAMES 4
 #define PICKUP_VX_Q8 TO_Q8(2)
 #define PICKUP_VY_Q8 (TO_Q8(1) / 4)
 #define NO_PICKUP_FRAME 0xFFu
@@ -47,6 +49,81 @@ static Projectile projectiles[MAX_PROJECTILES];
 static uint16_t pickup_rng = 0xA37Fu;
 
 static void projectile_deactivate(uint8_t slot);
+
+static void projectile_start_explosion(uint8_t slot)
+{
+    int16_t x = (int16_t)(projectiles[slot].x_q8 >> Q8_SHIFT);
+    int16_t y = (int16_t)(projectiles[slot].y_q8 >> Q8_SHIFT);
+    projectiles[slot].owner = PROJECTILE_OWNER_EXPLOSION;
+    projectiles[slot].vx_q8 = 0;
+    projectiles[slot].vy_q8 = 0;
+    projectiles[slot].frame_index = EXPLOSION_FRAME_0;
+    projectiles[slot].anim_tick = 0;
+    sprite_mode5_set_projectile_frame(slot, EXPLOSION_FRAME_0);
+    sprite_mode5_set_projectile_position(slot, x, y);
+}
+void projectile_fire_player(int16_t x, int16_t y)
+{
+    for (uint8_t i = 0; i < MAX_PLAYER_PROJECTILES; i++) {
+        if (!projectiles[i].active) {
+            projectiles[i].active = true;
+            projectiles[i].owner = PROJECTILE_OWNER_PLAYER;
+            projectiles[i].x_q8 = TO_Q8(x);
+            projectiles[i].y_q8 = TO_Q8(y);
+            projectiles[i].vx_q8 = 0;
+            projectiles[i].vy_q8 = (int16_t)(-TO_Q8(PROJECTILE_SPEED_PX));
+            projectiles[i].frame_index = PLAYER_PROJECTILE_FRAME;
+            sprite_mode5_set_projectile_frame(i, PLAYER_PROJECTILE_FRAME);
+            sprite_mode5_set_projectile_position(i, x, y);
+            return;
+        }
+    }
+    // All player slots full — no-op
+}
+
+bool projectile_fire_enemy(int16_t x, int16_t y, int16_t vx_q8, int16_t vy_q8, uint8_t frame_index)
+{
+    for (uint8_t i = FIRST_ENEMY_PROJECTILE_SLOT; i < MAX_PROJECTILES; i++) {
+        if (!projectiles[i].active) {
+            projectiles[i].active = true;
+            projectiles[i].owner = PROJECTILE_OWNER_ENEMY;
+            projectiles[i].x_q8 = TO_Q8(x);
+            projectiles[i].y_q8 = TO_Q8(y);
+            projectiles[i].vx_q8 = vx_q8;
+            projectiles[i].vy_q8 = vy_q8;
+            projectiles[i].frame_index = frame_index;
+            sprite_mode5_set_projectile_frame(i, frame_index);
+            sprite_mode5_set_projectile_position(i, x, y);
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool projectile_spawn_explosion(int16_t x, int16_t y)
+{
+    for (uint8_t i = FIRST_ENEMY_PROJECTILE_SLOT; i < MAX_PROJECTILES; ++i) {
+        if (projectiles[i].active) {
+            continue;
+        }
+
+        projectiles[i].active = true;
+        projectiles[i].owner = PROJECTILE_OWNER_EXPLOSION;
+        projectiles[i].x_q8 = TO_Q8(x);
+        projectiles[i].y_q8 = TO_Q8(y);
+        projectiles[i].vx_q8 = 0;
+        projectiles[i].vy_q8 = 0;
+        projectiles[i].frame_index = EXPLOSION_FRAME_0;
+        projectiles[i].anim_tick = 0;
+        sprite_mode5_set_projectile_frame(i, EXPLOSION_FRAME_0);
+        sprite_mode5_set_projectile_position(i, x, y);
+        return true;
+    }
+
+    return false;
+}
+
 
 static uint8_t projectile_roll_pickup_frame(void)
 {
@@ -132,7 +209,7 @@ static void projectile_try_hit_asteroids(void)
                                             (int16_t)(asteroid_top - ASTEROID_PICKUP_HITBOX_OFFSET),
                                             pickup_frame);
             }
-            projectile_deactivate(a);
+            projectile_start_explosion(a);
             break;
         }
     }
@@ -274,45 +351,6 @@ void projectile_spawn_asteroid_wave(uint8_t count)
     }
 }
 
-void projectile_fire_player(int16_t x, int16_t y)
-{
-    for (uint8_t i = 0; i < MAX_PLAYER_PROJECTILES; i++) {
-        if (!projectiles[i].active) {
-            projectiles[i].active = true;
-            projectiles[i].owner = PROJECTILE_OWNER_PLAYER;
-            projectiles[i].x_q8 = TO_Q8(x);
-            projectiles[i].y_q8 = TO_Q8(y);
-            projectiles[i].vx_q8 = 0;
-            projectiles[i].vy_q8 = (int16_t)(-TO_Q8(PROJECTILE_SPEED_PX));
-            projectiles[i].frame_index = PLAYER_PROJECTILE_FRAME;
-            sprite_mode5_set_projectile_frame(i, PLAYER_PROJECTILE_FRAME);
-            sprite_mode5_set_projectile_position(i, x, y);
-            return;
-        }
-    }
-    // All player slots full — no-op
-}
-
-bool projectile_fire_enemy(int16_t x, int16_t y, int16_t vx_q8, int16_t vy_q8, uint8_t frame_index)
-{
-    for (uint8_t i = FIRST_ENEMY_PROJECTILE_SLOT; i < MAX_PROJECTILES; i++) {
-        if (!projectiles[i].active) {
-            projectiles[i].active = true;
-            projectiles[i].owner = PROJECTILE_OWNER_ENEMY;
-            projectiles[i].x_q8 = TO_Q8(x);
-            projectiles[i].y_q8 = TO_Q8(y);
-            projectiles[i].vx_q8 = vx_q8;
-            projectiles[i].vy_q8 = vy_q8;
-            projectiles[i].frame_index = frame_index;
-            sprite_mode5_set_projectile_frame(i, frame_index);
-            sprite_mode5_set_projectile_position(i, x, y);
-            return true;
-        }
-    }
-
-    return false;
-}
-
 bool projectile_hit_test_enemy(int16_t x, int16_t y, int16_t width, int16_t height)
 {
     int16_t enemy_right = (int16_t)(x + width);
@@ -376,7 +414,11 @@ bool projectile_hit_test_player(int16_t x, int16_t y, int16_t width, int16_t hei
             continue;
         }
 
-        projectile_deactivate(i);
+        if (projectiles[i].owner == PROJECTILE_OWNER_ASTEROID) {
+            projectile_start_explosion(i);
+        } else {
+            projectile_deactivate(i);
+        }
         return true;
     }
 
@@ -417,6 +459,20 @@ void projectile_update(void)
             }
         }
 
+        if (projectiles[i].owner == PROJECTILE_OWNER_EXPLOSION) {
+            projectiles[i].anim_tick++;
+            if (projectiles[i].anim_tick >= EXPLOSION_ANIM_TICK_FRAMES) {
+                projectiles[i].anim_tick = 0;
+                if (projectiles[i].frame_index < EXPLOSION_FRAME_2) {
+                    projectiles[i].frame_index++;
+                    sprite_mode5_set_projectile_frame(i, projectiles[i].frame_index);
+                } else {
+                    projectile_deactivate(i);
+                    continue;
+                }
+            }
+        }
+
         if (projectiles[i].owner == PROJECTILE_OWNER_PLAYER) {
             if (projectile_is_offscreen_player(i)) {
                 projectile_deactivate(i);
@@ -436,6 +492,9 @@ void projectile_update(void)
             } else {
                 sprite_mode5_set_projectile_position(i, x, y);
             }
+        }
+        else if (projectiles[i].owner == PROJECTILE_OWNER_EXPLOSION) {
+            // Position is fixed; animation handler above controls frame and deactivation
         }
     }
 }

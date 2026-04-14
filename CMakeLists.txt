@@ -16,7 +16,7 @@ rp6502_asset(RPStarHopper 0x10C60 images/StarFields_FG_map.bin)
 rp6502_asset(RPStarHopper 0x115C0 images/StarFields_HUD_map.bin)
 rp6502_asset(RPStarHopper 0x11A70 images/StarFields_tiles_4bpp.bin)
 rp6502_asset(RPStarHopper 0x13A70 images/Projectiles_4bpp.bin)
-rp6502_asset(RPStarHopper 0x13BB0 images/Enemies_4bpp.bin)
+rp6502_asset(RPStarHopper 0x13C10 images/Enemies_4bpp.bin)
 rp6502_asset(RPStarHopper help src/help.txt)
 
 # ROM Assets

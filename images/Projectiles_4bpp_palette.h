@@ -11,7 +11,7 @@ static const uint16_t projectiles_4bpp[16] = {
     0xAD60,
     0x0035,
     0xA835,
-    0x02B5,
+    0x037A,
     0xAD75,
     0x52AA,
     0xFAAA,
