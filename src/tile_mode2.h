@@ -81,6 +81,7 @@ void tile_mode2_set_boss_health(uint8_t health);
 void tile_mode2_clear_level_bonus(void);
 void tile_mode2_begin_level_bonus(uint8_t level, uint8_t multiplier);
 void tile_mode2_set_bonus_row(uint8_t enemy_type, uint16_t kills, uint16_t points_each, uint16_t subtotal);
+void tile_mode2_set_bonus_boss_row(uint16_t boss_points);
 void tile_mode2_set_bonus_pending_total(uint32_t pending_total);
 int16_t tile_mode2_get_bonus_icon_target_x(void);
 int16_t tile_mode2_get_bonus_icon_target_y(uint8_t enemy_type);

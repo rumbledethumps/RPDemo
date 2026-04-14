@@ -37,7 +37,7 @@ void gameplay_update_playing_state(gameplay_runtime_t *state)
         } else {
             state->bonus_entry_pending = false;
             if (game_state_enter_level_bonus() == GAME_TRANSITION_ENTER_LEVEL_BONUS) {
-                level_bonus_begin(state->current_level);
+                level_bonus_begin(state->current_level, false);
             }
         }
         tile_mode2_update_health_fx(false, player_controller_is_low_health());

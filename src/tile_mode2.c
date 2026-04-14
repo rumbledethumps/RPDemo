@@ -65,7 +65,8 @@ static uint8_t health_flash_tick = 0;
 #define BONUS_ROW_Y_START (BONUS_TABLE_Y + 2)
 #define BONUS_ROW_Y_STEP 2
 #define BOSS_LABEL_TEXT_LEN 4
-#define BONUS_TOTAL_Y (BONUS_TABLE_Y + 16)
+#define BONUS_BOSS_ROW_Y (BONUS_ROW_Y_START + (ENEMY_TYPE_COUNT * BONUS_ROW_Y_STEP))
+#define BONUS_TOTAL_Y (BONUS_TABLE_Y + 17)
 #define BONUS_ICON_TILE_X BONUS_TABLE_X
 
 #ifndef COLOR_FROM_RGB8
@@ -769,6 +770,8 @@ void tile_mode2_begin_level_bonus(uint8_t level, uint8_t multiplier)
         tile_mode2_write_four_digits((uint8_t)(BONUS_TABLE_X + 11), row_y, 0);
     }
 
+    tile_mode2_set_bonus_boss_row(0);
+
     tile_mode2_set_bonus_pending_total(0);
 }
 
@@ -787,6 +790,30 @@ void tile_mode2_set_bonus_row(uint8_t enemy_type, uint16_t kills, uint16_t point
     tile_mode2_write_three_digits((uint8_t)(BONUS_TABLE_X + 6), row_y, points_each);
     tile_mode2_write_tile(STARFIELD_HUD_DATA, STARFIELD_HUD_WIDTH, (uint8_t)(BONUS_TABLE_X + 9), row_y, HUD_SYMBOL_EQUALS_TILE_INDEX);
     tile_mode2_write_four_digits((uint8_t)(BONUS_TABLE_X + 11), row_y, subtotal);
+}
+
+void tile_mode2_set_bonus_boss_row(uint16_t boss_points)
+{
+    static const uint8_t boss_tiles[4] = {
+        228, // B
+        241, // O
+        245, // S
+        245, // S
+    };
+
+    tile_mode2_write_hud_palette_entry(2, HUD_TEXT_YELLOW);
+    for (uint8_t i = 0; i < 4; ++i) {
+        tile_mode2_write_tile(
+            STARFIELD_HUD_DATA,
+            STARFIELD_HUD_WIDTH,
+            (uint8_t)(BONUS_TABLE_X + i),
+            BONUS_BOSS_ROW_Y,
+            boss_tiles[i]
+        );
+    }
+
+    tile_mode2_write_tile(STARFIELD_HUD_DATA, STARFIELD_HUD_WIDTH, (uint8_t)(BONUS_TABLE_X + 4), BONUS_BOSS_ROW_Y, 0);
+    tile_mode2_write_five_digits((uint8_t)(BONUS_TABLE_X + 5), BONUS_BOSS_ROW_Y, boss_points);
 }
 
 void tile_mode2_set_bonus_pending_total(uint32_t pending_total)

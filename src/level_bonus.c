@@ -26,6 +26,7 @@ typedef enum {
 #define BONUS_ROW_HOLD_FRAMES 36
 #define BONUS_PAYOUT_STEP_FRAMES 3
 #define BONUS_HEALTH_STEP_FRAMES 6
+#define BONUS_BOSS_POINTS 10000
 
 static bonus_phase_t bonus_phase = BONUS_PHASE_IDLE;
 static uint16_t bonus_kills[ENEMY_TYPE_COUNT];
@@ -41,6 +42,7 @@ static uint16_t bonus_health_pending = 0;
 static uint8_t bonus_health_tick = 0;
 static uint8_t bonus_payout_tick = 0;
 static uint32_t bonus_pending_total = 0;
+static uint16_t bonus_boss_points = 0;
 static bool level_bonus_complete = false;
 
 void level_bonus_reset(void)
@@ -62,11 +64,12 @@ void level_bonus_reset(void)
     bonus_health_tick = 0;
     bonus_payout_tick = 0;
     bonus_pending_total = 0;
+    bonus_boss_points = 0;
     level_bonus_complete = false;
     tile_mode2_set_bonus_continue_prompt(false);
 }
 
-void level_bonus_begin(uint8_t current_level)
+void level_bonus_begin(uint8_t current_level, bool boss_defeated)
 {
     uint16_t total_kills = 0;
 
@@ -91,6 +94,7 @@ void level_bonus_begin(uint8_t current_level)
     bonus_health_tick = 0;
     bonus_payout_tick = 0;
     bonus_pending_total = 0;
+    bonus_boss_points = boss_defeated ? BONUS_BOSS_POINTS : 0;
     level_bonus_complete = false;
 
     projectile_init();
@@ -170,6 +174,12 @@ void level_bonus_update(uint8_t *hud_health_last)
             if (bonus_row_index < ENEMY_TYPE_COUNT) {
                 enemy_start_bonus_icon_fly_in(bonus_row_index);
                 bonus_phase = BONUS_PHASE_ICON_FLY_IN;
+            } else if (bonus_row_index == ENEMY_TYPE_COUNT) {
+                tile_mode2_set_bonus_boss_row(bonus_boss_points);
+                bonus_pending_total += bonus_boss_points;
+                tile_mode2_set_bonus_pending_total(bonus_pending_total);
+                bonus_row_hold_timer = BONUS_ROW_HOLD_FRAMES;
+                bonus_phase = BONUS_PHASE_ROW_HOLD;
             } else {
                 bonus_phase = BONUS_PHASE_COUNTDOWN_TOTAL;
             }

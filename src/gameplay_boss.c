@@ -190,9 +190,10 @@ void gameplay_boss_update(gameplay_runtime_t *state)
     }
 
     if (boss_health == 0 || boss_fight_timer >= BOSS_FIGHT_TIMEOUT_FRAMES) {
+        bool boss_defeated = (boss_health == 0);
         if (game_state_enter_level_bonus() == GAME_TRANSITION_ENTER_LEVEL_BONUS) {
             gameplay_boss_reset();
-            level_bonus_begin(state->current_level);
+            level_bonus_begin(state->current_level, boss_defeated);
         }
         return;
     }
