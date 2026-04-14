@@ -118,6 +118,7 @@ void gameplay_update_player_script(gameplay_runtime_t *state)
 
 void gameplay_reset_to_title_scene(gameplay_runtime_t *state)
 {
+    gameplay_boss_reset();
     enemy_stop_game_over_animation();
     enemy_hide_bonus_icons();
     projectile_init();
@@ -150,6 +151,7 @@ static void start_new_run(void)
     gameplay_runtime_t *state = &runtime_state;
 
     state->current_level = 1;
+    gameplay_boss_reset();
     enemy_stop_game_over_animation();
     enemy_hide_bonus_icons();
     projectile_init();
@@ -186,6 +188,7 @@ static void start_next_level(void)
         state->current_level++;
     }
 
+    gameplay_boss_reset();
     enemy_hide_bonus_icons();
     projectile_init();
     enemy_start_level(state->current_level);
