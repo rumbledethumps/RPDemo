@@ -45,16 +45,34 @@
 #define BOSS_WAVE_ASTEROID_COUNT 2
 #define BOSS_ASTEROID_WAVE_THIRD 3
 #define BOSS_ASTEROID_WAVE_SIXTH 6
+#define BOSS_VARIANT_ONE   1
+#define BOSS_VARIANT_TWO   2
+#define BOSS_VARIANT_THREE 3
+#define BOSS_VARIANT_FOUR  4
+#define BOSS_VARIANT_FOUR_MIN_ENEMIES_FOR_DAMAGE 3
 #define BOSS_LEVEL_TWO_FRAME_SET_A_BASE 68
 #define BOSS_LEVEL_TWO_FRAME_SET_B_BASE 74
 #define BOSS_LEVEL_TWO_FRAME_SET_ATTACK_BASE 80
 #define BOSS_LEVEL_TWO_COLLISION_X_MIN 11
 #define BOSS_LEVEL_TWO_COLLISION_X_MAX 36
+#define BOSS_LEVEL_THREE_FRAME_SET_A_BASE 86
+#define BOSS_LEVEL_THREE_FRAME_SET_B_BASE 92
+#define BOSS_LEVEL_THREE_FRAME_SET_ATTACK_BASE 98
+#define BOSS_LEVEL_FOUR_FRAME_SET_A_BASE 104
+#define BOSS_LEVEL_FOUR_FRAME_SET_B_BASE 110
+#define BOSS_LEVEL_FOUR_FRAME_SET_ATTACK_BASE 116
 #define BOSS_WAVE_DIVE_EXIT_SPEED_PX 3
 #define BOSS_WAVE_DIVE_RISE_SPEED_PX 3
 #define BOSS_WAVE_DIVE_UNDER_PLAYER_OFFSET_PX 2
 #define BOSS_WAVE_DIVE_PHASE_EXIT_TOP 0
 #define BOSS_WAVE_DIVE_PHASE_RISE_FROM_BOTTOM 1
+#define BOSS_WAVE_SLIDE_PHASE_SINK_TO_BOTTOM 0
+#define BOSS_WAVE_SLIDE_PHASE_SLIDE_X 1
+#define BOSS_WAVE_SLIDE_PHASE_RISE_TO_ARENA 2
+#define BOSS_WAVE_SLIDE_SINK_SPEED_PX 3
+#define BOSS_WAVE_SLIDE_SPEED_PX 3
+#define BOSS_WAVE_SLIDE_RISE_SPEED_PX 3
+#define BOSS_WAVE_SLIDE_BOTTOM_Y (SCREEN_HEIGHT - (BOSS_GRID_ROWS * ENEMY_SPRITE_SIZE_PX))
 #define BOSS_DEFEAT_SEQUENCE_FRAMES (3 * 60)
 #define BOSS_DEFEAT_EXPLOSION_INTERVAL_FRAMES 3
 #define BOSS_DEFEAT_EXPLOSIONS_PER_BURST 3
@@ -83,7 +101,7 @@ static uint8_t boss_wave_type = 0;
 static uint8_t boss_wave_inter_spawn_timer = 0;
 static bool boss_wave_active = false;
 static uint8_t boss_wave_count = 0;
-static bool boss_level_two_variant = false;
+static uint8_t boss_variant = BOSS_VARIANT_ONE;
 static uint8_t boss_frame_set_a_base = BOSS_FRAME_SET_A_BASE;
 static uint8_t boss_frame_set_b_base = BOSS_FRAME_SET_B_BASE;
 static uint8_t boss_frame_set_attack_base = BOSS_FRAME_SET_ATTACK_BASE;
@@ -91,6 +109,9 @@ static uint8_t boss_collision_x_min = BOSS_WEAKSPOT_X_MIN;
 static uint8_t boss_collision_x_max = BOSS_WEAKSPOT_X_MAX;
 static bool boss_wave_dive_active = false;
 static uint8_t boss_wave_dive_phase = BOSS_WAVE_DIVE_PHASE_EXIT_TOP;
+static bool boss_wave_slide_active = false;
+static uint8_t boss_wave_slide_phase = BOSS_WAVE_SLIDE_PHASE_SINK_TO_BOTTOM;
+static int16_t boss_wave_slide_target_x = BOSS_START_X;
 static bool boss_defeat_sequence_active = false;
 static uint16_t boss_defeat_timer = 0;
 static uint8_t boss_defeat_spawn_timer = 0;
@@ -227,14 +248,29 @@ void gameplay_boss_begin(gameplay_runtime_t *state)
 {
     int16_t boss_height = (int16_t)(BOSS_GRID_ROWS * ENEMY_SPRITE_SIZE_PX);
 
-    boss_level_two_variant = (state->current_level >= 2);
-    if (boss_level_two_variant) {
+    if (state->current_level >= 4) {
+        boss_variant = BOSS_VARIANT_FOUR;
+        boss_frame_set_a_base = BOSS_LEVEL_FOUR_FRAME_SET_A_BASE;
+        boss_frame_set_b_base = BOSS_LEVEL_FOUR_FRAME_SET_B_BASE;
+        boss_frame_set_attack_base = BOSS_LEVEL_FOUR_FRAME_SET_ATTACK_BASE;
+        boss_collision_x_min = BOSS_WEAKSPOT_X_MIN;
+        boss_collision_x_max = BOSS_WEAKSPOT_X_MAX;
+    } else if (state->current_level >= 3) {
+        boss_variant = BOSS_VARIANT_THREE;
+        boss_frame_set_a_base = BOSS_LEVEL_THREE_FRAME_SET_A_BASE;
+        boss_frame_set_b_base = BOSS_LEVEL_THREE_FRAME_SET_B_BASE;
+        boss_frame_set_attack_base = BOSS_LEVEL_THREE_FRAME_SET_ATTACK_BASE;
+        boss_collision_x_min = BOSS_WEAKSPOT_X_MIN;
+        boss_collision_x_max = BOSS_WEAKSPOT_X_MAX;
+    } else if (state->current_level >= 2) {
+        boss_variant = BOSS_VARIANT_TWO;
         boss_frame_set_a_base = BOSS_LEVEL_TWO_FRAME_SET_A_BASE;
         boss_frame_set_b_base = BOSS_LEVEL_TWO_FRAME_SET_B_BASE;
         boss_frame_set_attack_base = BOSS_LEVEL_TWO_FRAME_SET_ATTACK_BASE;
         boss_collision_x_min = BOSS_LEVEL_TWO_COLLISION_X_MIN;
         boss_collision_x_max = BOSS_LEVEL_TWO_COLLISION_X_MAX;
     } else {
+        boss_variant = BOSS_VARIANT_ONE;
         boss_frame_set_a_base = BOSS_FRAME_SET_A_BASE;
         boss_frame_set_b_base = BOSS_FRAME_SET_B_BASE;
         boss_frame_set_attack_base = BOSS_FRAME_SET_ATTACK_BASE;
@@ -264,6 +300,9 @@ void gameplay_boss_begin(gameplay_runtime_t *state)
     boss_wave_count = 0;
     boss_wave_dive_active = false;
     boss_wave_dive_phase = BOSS_WAVE_DIVE_PHASE_EXIT_TOP;
+    boss_wave_slide_active = false;
+    boss_wave_slide_phase = BOSS_WAVE_SLIDE_PHASE_SINK_TO_BOTTOM;
+    boss_wave_slide_target_x = BOSS_START_X;
     boss_defeat_sequence_active = false;
     boss_defeat_timer = 0;
     boss_defeat_spawn_timer = 0;
@@ -289,6 +328,7 @@ void gameplay_boss_update(gameplay_runtime_t *state)
     int16_t weakspot_y;
     int16_t weakspot_w;
     int16_t weakspot_h;
+    bool boss_can_take_damage = true;
 
     if (state->player_script != PLAYER_SCRIPT_NONE) {
         gameplay_update_player_script(state);
@@ -435,6 +475,53 @@ void gameplay_boss_update(gameplay_runtime_t *state)
                 boss_pivot_index = 0;
             }
         }
+    } else if (boss_wave_slide_active) {
+        int16_t boss_width = (int16_t)(BOSS_GRID_COLS * ENEMY_SPRITE_SIZE_PX);
+
+        if (boss_wave_slide_phase == BOSS_WAVE_SLIDE_PHASE_SINK_TO_BOTTOM) {
+            boss_y = (int16_t)(boss_y + BOSS_WAVE_SLIDE_SINK_SPEED_PX);
+            if (boss_y >= BOSS_WAVE_SLIDE_BOTTOM_Y) {
+                boss_y = BOSS_WAVE_SLIDE_BOTTOM_Y;
+                /* Lock on to the player's current x position */
+                int16_t player_center_x = (int16_t)(player_x + (PLAYER_SPRITE_SIZE_PX / 2));
+                int16_t target_x = (int16_t)(player_center_x - (boss_width / 2));
+                int16_t min_x = BOSS_ARENA_MARGIN_X;
+                int16_t max_x = (int16_t)(SCREEN_WIDTH - boss_width - BOSS_ARENA_MARGIN_X);
+
+                if (target_x < min_x) {
+                    target_x = min_x;
+                } else if (target_x > max_x) {
+                    target_x = max_x;
+                }
+
+                boss_wave_slide_target_x = target_x;
+                boss_wave_slide_phase = BOSS_WAVE_SLIDE_PHASE_SLIDE_X;
+            }
+        } else if (boss_wave_slide_phase == BOSS_WAVE_SLIDE_PHASE_SLIDE_X) {
+            if (boss_x < boss_wave_slide_target_x) {
+                boss_x = (int16_t)(boss_x + BOSS_WAVE_SLIDE_SPEED_PX);
+                if (boss_x > boss_wave_slide_target_x) {
+                    boss_x = boss_wave_slide_target_x;
+                }
+            } else if (boss_x > boss_wave_slide_target_x) {
+                boss_x = (int16_t)(boss_x - BOSS_WAVE_SLIDE_SPEED_PX);
+                if (boss_x < boss_wave_slide_target_x) {
+                    boss_x = boss_wave_slide_target_x;
+                }
+            }
+
+            if (boss_x == boss_wave_slide_target_x) {
+                boss_wave_slide_phase = BOSS_WAVE_SLIDE_PHASE_RISE_TO_ARENA;
+            }
+        } else {
+            boss_y = (int16_t)(boss_y - BOSS_WAVE_SLIDE_RISE_SPEED_PX);
+            if (boss_y <= BOSS_ARENA_TOP_Y) {
+                boss_y = BOSS_ARENA_TOP_Y;
+                boss_wave_slide_active = false;
+                boss_wave_slide_phase = BOSS_WAVE_SLIDE_PHASE_SINK_TO_BOTTOM;
+                boss_pivot_index = 0;
+            }
+        }
     } else {
         int16_t target_x = boss_pivot_x[boss_pivot_index];
         int16_t target_y = boss_pivot_y[boss_pivot_index];
@@ -471,7 +558,7 @@ void gameplay_boss_update(gameplay_runtime_t *state)
         }
     }
 
-    if (!boss_entering && !boss_wave_dive_active) {
+    if (!boss_entering && !boss_wave_dive_active && !boss_wave_slide_active) {
         boss_attack_cycle_timer = (uint16_t)(boss_attack_cycle_timer + 1);
         if (boss_attack_cycle_timer >= BOSS_ATTACK_CYCLE_FRAMES) {
             boss_attack_cycle_timer = 0;
@@ -524,7 +611,14 @@ void gameplay_boss_update(gameplay_runtime_t *state)
     weakspot_y = (int16_t)(boss_y + BOSS_WEAKSPOT_Y_MIN);
     weakspot_w = (int16_t)(boss_collision_x_max - boss_collision_x_min + 1);
     weakspot_h = (int16_t)(BOSS_WEAKSPOT_Y_MAX - BOSS_WEAKSPOT_Y_MIN + 1);
-    if (boss_health > 0 && projectile_hit_test_enemy(weakspot_x, weakspot_y, weakspot_w, weakspot_h)) {
+
+    if (boss_variant == BOSS_VARIANT_FOUR) {
+        boss_can_take_damage = (enemy_get_active_count() >= BOSS_VARIANT_FOUR_MIN_ENEMIES_FOR_DAMAGE);
+    }
+    sprite_mode5_set_boss_palette_active(boss_can_take_damage);
+
+    if (boss_health > 0 && boss_can_take_damage &&
+        projectile_hit_test_enemy(weakspot_x, weakspot_y, weakspot_w, weakspot_h)) {
         if (boss_health > BOSS_DAMAGE_PER_HIT) {
             boss_health = (uint8_t)(boss_health - BOSS_DAMAGE_PER_HIT);
         } else {
@@ -535,10 +629,11 @@ void gameplay_boss_update(gameplay_runtime_t *state)
         tile_mode2_set_boss_health(boss_health);
     }
 
-    if (boss_hit_flash_timer > 0) {
+    if (boss_can_take_damage && boss_hit_flash_timer > 0) {
         boss_hit_flash_timer--;
         sprite_mode5_set_boss_weakspot_flash(true);
     } else {
+        boss_hit_flash_timer = 0;
         sprite_mode5_set_boss_weakspot_flash(false);
     }
 
@@ -557,6 +652,8 @@ void gameplay_boss_update(gameplay_runtime_t *state)
         boss_attack_volleys_fired = 0;
         boss_wave_dive_active = false;
         boss_wave_dive_phase = BOSS_WAVE_DIVE_PHASE_EXIT_TOP;
+        boss_wave_slide_active = false;
+        boss_wave_slide_phase = BOSS_WAVE_SLIDE_PHASE_SINK_TO_BOTTOM;
         enemy_clear_all();
         projectile_init();
         sprite_mode5_set_boss_weakspot_flash(false);
@@ -589,9 +686,12 @@ void gameplay_boss_update(gameplay_runtime_t *state)
                     boss_wave_count == BOSS_ASTEROID_WAVE_SIXTH) {
                     projectile_spawn_asteroid_wave(BOSS_WAVE_ASTEROID_COUNT);
                 }
-                if (boss_level_two_variant) {
+                if (boss_variant == BOSS_VARIANT_TWO) {
                     boss_wave_dive_active = true;
                     boss_wave_dive_phase = BOSS_WAVE_DIVE_PHASE_EXIT_TOP;
+                } else if (boss_variant == BOSS_VARIANT_THREE) {
+                    boss_wave_slide_active = true;
+                    boss_wave_slide_phase = BOSS_WAVE_SLIDE_PHASE_SINK_TO_BOTTOM;
                 }
                 boss_wave_active = true;
             }
@@ -637,7 +737,7 @@ void gameplay_boss_reset(void)
     boss_wave_inter_spawn_timer = 0;
     boss_wave_active = false;
     boss_wave_count = 0;
-    boss_level_two_variant = false;
+    boss_variant = BOSS_VARIANT_ONE;
     boss_frame_set_a_base = BOSS_FRAME_SET_A_BASE;
     boss_frame_set_b_base = BOSS_FRAME_SET_B_BASE;
     boss_frame_set_attack_base = BOSS_FRAME_SET_ATTACK_BASE;
@@ -645,6 +745,9 @@ void gameplay_boss_reset(void)
     boss_collision_x_max = BOSS_WEAKSPOT_X_MAX;
     boss_wave_dive_active = false;
     boss_wave_dive_phase = BOSS_WAVE_DIVE_PHASE_EXIT_TOP;
+    boss_wave_slide_active = false;
+    boss_wave_slide_phase = BOSS_WAVE_SLIDE_PHASE_SINK_TO_BOTTOM;
+    boss_wave_slide_target_x = BOSS_START_X;
     boss_defeat_sequence_active = false;
     boss_defeat_timer = 0;
     boss_defeat_spawn_timer = 0;

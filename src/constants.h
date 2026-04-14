@@ -111,7 +111,7 @@
 #define BOSS_STAGE_MUSIC_TRACK "music/RESOURCE.009.vgm"
 
 #define ENEMY_DATA             (PROJECTILE_DATA + PROJECTILE_DATA_SIZE) // Address for enemy sprite data
-#define ENEMY_DATA_SIZE        0x2B00U              // 11008 bytes (86 frames 16x16 at 4bpp)
+#define ENEMY_DATA_SIZE        0x3D00U              // 15616 bytes (122 frames 16x16 at 4bpp)
 #define ENEMY_SPRITE_SIZE_PX   16
 #define ENEMY_FRAME_SIZE       0x0080U              // 128 bytes per 16x16 4bpp frame
 #define ENEMY_TYPE_COUNT       7

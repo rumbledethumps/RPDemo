@@ -1508,6 +1508,19 @@ bool enemy_has_active(void)
     return false;
 }
 
+uint8_t enemy_get_active_count(void)
+{
+    uint8_t count = 0;
+
+    for (uint8_t i = 0; i < MAX_ENEMIES; ++i) {
+        if (enemies[i].active && !enemies[i].dying) {
+            count++;
+        }
+    }
+
+    return count;
+}
+
 void enemy_update(void)
 {
     if (game_over_mode) {
