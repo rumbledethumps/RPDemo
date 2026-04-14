@@ -22,6 +22,7 @@
 #define BOSS_PROJECTILE_VX_Q8 0
 #define BOSS_PROJECTILE_VY_Q8 (3 << 8)
 #define BOSS_DAMAGE_PER_HIT 4
+#define BOSS_HIT_FLASH_FRAMES 12
 
 static bool boss_active = false;
 static int16_t boss_x = BOSS_START_X;
@@ -33,6 +34,7 @@ static uint16_t boss_attack_cycle_timer = 0;
 static uint8_t boss_attack_fire_timer = 0;
 static uint8_t boss_health = BOSS_MAX_HEALTH;
 static uint32_t boss_fight_timer = 0;
+static uint8_t boss_hit_flash_timer = 0;
 
 static void boss_fire_dual_projectiles(void)
 {
@@ -59,10 +61,12 @@ void gameplay_boss_begin(gameplay_runtime_t *state)
     boss_attack_fire_timer = 0;
     boss_health = BOSS_MAX_HEALTH;
     boss_fight_timer = 0;
+    boss_hit_flash_timer = 0;
     state->hud_health_last = player_controller_get_health();
     music_set_track(BOSS_STAGE_MUSIC_TRACK);
     tile_mode2_set_boss_hud_visible(true);
     tile_mode2_set_boss_health(boss_health);
+    sprite_mode5_set_boss_palette_active(true);
     sprite_mode5_show_boss(boss_x, boss_y, boss_frame_set);
 }
 
@@ -174,7 +178,15 @@ void gameplay_boss_update(gameplay_runtime_t *state)
         } else {
             boss_health = 0;
         }
+        boss_hit_flash_timer = BOSS_HIT_FLASH_FRAMES;
         tile_mode2_set_boss_health(boss_health);
+    }
+
+    if (boss_hit_flash_timer > 0) {
+        boss_hit_flash_timer--;
+        sprite_mode5_set_boss_weakspot_flash(true);
+    } else {
+        sprite_mode5_set_boss_weakspot_flash(false);
     }
 
     if (boss_health == 0 || boss_fight_timer >= BOSS_FIGHT_TIMEOUT_FRAMES) {
@@ -200,6 +212,8 @@ void gameplay_boss_reset(void)
     boss_attack_fire_timer = 0;
     boss_health = BOSS_MAX_HEALTH;
     boss_fight_timer = 0;
+    boss_hit_flash_timer = 0;
+    sprite_mode5_set_boss_palette_active(false);
     tile_mode2_set_boss_hud_visible(false);
     sprite_mode5_hide_boss();
 }

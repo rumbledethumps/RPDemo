@@ -14,9 +14,16 @@ static uint8_t player_frame = 0;
 static uint8_t engine_phase = 0;
 static uint8_t engine_tick = 0;
 static bool damage_flash_active = false;
+static bool boss_palette_active = false;
+static uint8_t boss_weakspot_flash_tick = 0;
+static uint16_t boss_weakspot_current_color = 0;
 
 #define PLAYER_ENGINE_PALETTE_INDEX 12
 #define ENGINE_ANIM_TICK_FRAMES 4
+#define BOSS_WEAKSPOT_PALETTE_INDEX 6
+#define BOSS_WEAKSPOT_FIGHT_COLOR 0x57FF
+#define BOSS_WEAKSPOT_FLASH_RED 0x003F
+#define BOSS_WEAKSPOT_FLASH_TOGGLE_FRAMES 3
 
 static const uint16_t engine_colors[3] = {
     0x52BF,
@@ -27,6 +34,14 @@ static const uint16_t engine_colors[3] = {
 static void sprite_mode5_write_palette_entry(uint8_t index, uint16_t color)
 {
     RIA.addr0 = (unsigned)(PLAYER_PALETTE_ADDR + ((unsigned)index * 2u));
+    RIA.step0 = 1;
+    RIA.rw0 = color & 0xFF;
+    RIA.rw0 = color >> 8;
+}
+
+static void sprite_mode5_write_enemy_palette_entry(uint8_t index, uint16_t color)
+{
+    RIA.addr0 = (unsigned)(ENEMY_PALETTE_ADDR + ((unsigned)index * 2u));
     RIA.step0 = 1;
     RIA.rw0 = color & 0xFF;
     RIA.rw0 = color >> 8;
@@ -118,6 +133,10 @@ void sprite_mode5_init_enemies(void) {
         RIA.rw0 = enemy_palette[i] & 0xFF;
         RIA.rw0 = enemy_palette[i] >> 8;
     }
+
+    boss_palette_active = false;
+    boss_weakspot_flash_tick = 0;
+    boss_weakspot_current_color = enemy_palette[BOSS_WEAKSPOT_PALETTE_INDEX];
 
     puts("Mode5 enemy sprites ready");
 }
@@ -261,4 +280,47 @@ void sprite_mode5_show_player(void)
 
     player_controller_get_position(&x, &y);
     sprite_mode5_set_position(x, y);
+}
+
+void sprite_mode5_set_boss_palette_active(bool active)
+{
+    uint16_t target_color;
+
+    if (boss_palette_active == active) {
+        return;
+    }
+
+    boss_palette_active = active;
+    boss_weakspot_flash_tick = 0;
+    target_color = active ? BOSS_WEAKSPOT_FIGHT_COLOR : enemy_palette[BOSS_WEAKSPOT_PALETTE_INDEX];
+    if (boss_weakspot_current_color != target_color) {
+        boss_weakspot_current_color = target_color;
+        sprite_mode5_write_enemy_palette_entry(BOSS_WEAKSPOT_PALETTE_INDEX, target_color);
+    }
+}
+
+void sprite_mode5_set_boss_weakspot_flash(bool active)
+{
+    uint16_t target_color;
+
+    if (!boss_palette_active) {
+        return;
+    }
+
+    if (active) {
+        boss_weakspot_flash_tick = (uint8_t)((boss_weakspot_flash_tick + 1) % (BOSS_WEAKSPOT_FLASH_TOGGLE_FRAMES * 2));
+        if (boss_weakspot_flash_tick < BOSS_WEAKSPOT_FLASH_TOGGLE_FRAMES) {
+            target_color = BOSS_WEAKSPOT_FLASH_RED;
+        } else {
+            target_color = BOSS_WEAKSPOT_FIGHT_COLOR;
+        }
+    } else {
+        boss_weakspot_flash_tick = 0;
+        target_color = BOSS_WEAKSPOT_FIGHT_COLOR;
+    }
+
+    if (boss_weakspot_current_color != target_color) {
+        boss_weakspot_current_color = target_color;
+        sprite_mode5_write_enemy_palette_entry(BOSS_WEAKSPOT_PALETTE_INDEX, target_color);
+    }
 }

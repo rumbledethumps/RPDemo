@@ -1,6 +1,7 @@
 #ifndef SPRITE_MODE5_H
 #define SPRITE_MODE5_H
 
+#include <stdint.h>
 #include <stdbool.h>
 
 typedef struct {
@@ -84,5 +85,7 @@ void sprite_mode5_hide_player(void);
 void sprite_mode5_show_player(void);
 void sprite_mode5_show_boss(int16_t x, int16_t y, uint8_t frame_set_base);
 void sprite_mode5_hide_boss(void);
+void sprite_mode5_set_boss_palette_active(bool active);
+void sprite_mode5_set_boss_weakspot_flash(bool active);
 
 #endif // SPRITE_MODE5_H
