@@ -2,7 +2,6 @@
 
 #include <stdbool.h>
 #include <stdint.h>
-#include <stdio.h>
 #include <string.h>
 
 #include "constants.h"
@@ -24,18 +23,11 @@ static bool music_start_current(void) {
 }
 
 void music_init(void) {
-    puts("Music init...");
-
     memset(&g_player, 0, sizeof(g_player));
     g_player.fd = -1;
 
     opl_config(1, OPL_XRAM_ADDR);
-    if (music_start_current()) {
-        puts("Music resource loaded: music/RESOURCE.001.vgm");
-    } else {
-        puts("Music resource failed to load");
-        puts(g_status_line);
-    }
+    music_start_current();
 }
 
 bool music_set_track(const char *path) {
@@ -53,15 +45,7 @@ bool music_set_track(const char *path) {
     }
 
     k_music_path = path;
-    if (music_start_current()) {
-        puts("Music resource switched");
-        puts(k_music_path);
-        return true;
-    }
-
-    puts("Music resource failed to load");
-    puts(g_status_line);
-    return false;
+    return music_start_current();
 }
 
 void music_stop(void)
@@ -81,11 +65,7 @@ void music_update(void) {
 
     vgm_update(&g_player, 735u, &track_ended, g_status_line, sizeof(g_status_line));
     if (track_ended) {
-        puts("Music track ended, restarting...");
         vgm_close(&g_player);
-        if (!music_start_current()) {
-            puts("Music restart failed");
-            puts(g_status_line);
-        }
+        music_start_current();
     }
 }

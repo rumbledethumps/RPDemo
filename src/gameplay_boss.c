@@ -62,6 +62,7 @@ void gameplay_boss_begin(gameplay_runtime_t *state)
     boss_health = BOSS_MAX_HEALTH;
     boss_fight_timer = 0;
     boss_hit_flash_timer = 0;
+    state->level_banner_visible = false;
     state->hud_health_last = player_controller_get_health();
     music_set_track(BOSS_STAGE_MUSIC_TRACK);
     tile_mode2_set_boss_hud_visible(true);
@@ -82,6 +83,28 @@ void gameplay_boss_update(gameplay_runtime_t *state)
     int16_t weakspot_y;
     int16_t weakspot_w;
     int16_t weakspot_h;
+
+    if (state->player_script != PLAYER_SCRIPT_NONE) {
+        gameplay_update_player_script(state);
+        tile_mode2_update_health_fx(false, player_controller_is_low_health());
+        return;
+    }
+
+    if (state->bonus_entry_pending) {
+        sprite_mode5_set_frame(0);
+        sprite_mode5_update_engine(false);
+        if (state->bonus_entry_hold_timer > 0) {
+            state->bonus_entry_hold_timer--;
+        } else {
+            state->bonus_entry_pending = false;
+            if (game_state_enter_level_bonus() == GAME_TRANSITION_ENTER_LEVEL_BONUS) {
+                level_bonus_begin(state->current_level, state->level_banner_visible);
+                state->level_banner_visible = false;
+            }
+        }
+        tile_mode2_update_health_fx(false, player_controller_is_low_health());
+        return;
+    }
 
     if (!boss_active) {
         return;
@@ -191,10 +214,13 @@ void gameplay_boss_update(gameplay_runtime_t *state)
 
     if (boss_health == 0 || boss_fight_timer >= BOSS_FIGHT_TIMEOUT_FRAMES) {
         bool boss_defeated = (boss_health == 0);
-        if (game_state_enter_level_bonus() == GAME_TRANSITION_ENTER_LEVEL_BONUS) {
-            gameplay_boss_reset();
-            level_bonus_begin(state->current_level, boss_defeated);
-        }
+        state->level_banner_visible = boss_defeated;
+        gameplay_boss_reset();
+        projectile_init();
+        enemy_clear_all();
+        player_controller_reset_damage_state();
+        tile_mode2_set_level_complete_banner(boss_defeated);
+        state->player_script = PLAYER_SCRIPT_TO_BONUS;
         return;
     }
 

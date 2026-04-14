@@ -1,5 +1,4 @@
 #include <rp6502.h>
-#include <stdio.h>
 #include <stdint.h>
 #include <stdbool.h>
 #include <fcntl.h>
@@ -55,7 +54,7 @@ static uint8_t health_flash_tick = 0;
 #define LEVEL_COMPLETE_TEXT_Y 14
 #define LEVEL_COMPLETE_TEXT_LEN 14
 #define BONUS_CONTINUE_TEXT_X 14
-#define BONUS_CONTINUE_TEXT_Y 23
+#define BONUS_CONTINUE_TEXT_Y 24
 #define BONUS_CONTINUE_TEXT_LEN 11
 #define HEALTH_FLASH_TOGGLE_FRAMES 3
 #define BONUS_TABLE_X 10
@@ -302,7 +301,6 @@ void tile_mode2_init(void) {
     // OPTIONS: bit3=0 (8x8 tiles), bit[2:0]=2 (8-bit color index) => 0b0010 = 2
     // Plane 0 = background fill layer (behind sprite plane 1)
     if (xreg_vga_mode(2, 0x02, TILE_BG_CONFIG, 0, 24, 0) < 0) {
-        puts("xreg_vga_mode failed");
         return;
     }
 
@@ -323,7 +321,6 @@ void tile_mode2_init(void) {
     // OPTIONS: bit3=0 (8x8 tiles), bit[2:0]=2 (8-bit color index) => 0b0010 = 2
     // Plane 0 = background fill layer (behind sprite plane 1)
     if (xreg_vga_mode(2, 0x02, TILE_FG_CONFIG, 1, 24, 0) < 0) {
-        puts("xreg_vga_mode failed");
         return;
     }
 
@@ -344,7 +341,6 @@ void tile_mode2_init(void) {
     // OPTIONS: bit3=0 (8x8 tiles), bit[2:0]=2 (8-bit color index) => 0b0010 = 2
     // Plane 0 = background fill layer (behind sprite plane 1)
     if (xreg_vga_mode(2, 0x02, TILE_HUD_CONFIG, 2, 0, 0) < 0) {
-        puts("xreg_vga_mode failed");
         return;
     }
 
@@ -375,8 +371,6 @@ void tile_mode2_init(void) {
     tile_mode2_set_score(0);
     tile_mode2_set_health(PLAYER_MAX_HEALTH);
     tile_mode2_update_health_fx(false, false);
-
-    puts("Mode2 tiles ready");
 }
 
 void tile_mode2_set_score(uint32_t score)
@@ -813,7 +807,7 @@ void tile_mode2_set_bonus_boss_row(uint16_t boss_points)
     }
 
     tile_mode2_write_tile(STARFIELD_HUD_DATA, STARFIELD_HUD_WIDTH, (uint8_t)(BONUS_TABLE_X + 4), BONUS_BOSS_ROW_Y, 0);
-    tile_mode2_write_five_digits((uint8_t)(BONUS_TABLE_X + 5), BONUS_BOSS_ROW_Y, boss_points);
+    tile_mode2_write_five_digits((uint8_t)(BONUS_TABLE_X + 10), BONUS_BOSS_ROW_Y, boss_points);
 }
 
 void tile_mode2_set_bonus_pending_total(uint32_t pending_total)

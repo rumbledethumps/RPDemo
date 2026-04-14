@@ -1,5 +1,4 @@
 #include <rp6502.h>
-#include <stdio.h>
 #include <stdint.h>
 #include "constants.h"
 #include "player_controller.h"
@@ -63,7 +62,6 @@ void sprite_mode5_init(void) {
 
     // Mode 5 args: MODE, OPTIONS, CONFIG, LENGTH, PLANE, BEGIN, END
     if (xreg_vga_mode(5, 0x0A, PLAYER_CONFIG, 1, 2, 0, 0) < 0) {
-        puts("xreg_vga_mode failed");
         return;
     }
 
@@ -76,8 +74,6 @@ void sprite_mode5_init(void) {
     }
 
     sprite_mode5_write_palette_entry(PLAYER_ENGINE_PALETTE_INDEX, 0x0000);
-
-    puts("Mode5 player sprite ready");
 }
 
 void sprite_mode5_init_projectiles(void) {
@@ -95,7 +91,6 @@ void sprite_mode5_init_projectiles(void) {
 
     // Mode 5 args: MODE, OPTIONS, CONFIG, LENGTH, PLANE, BEGIN, END
     if (xreg_vga_mode(5, 0x02, PROJECTILE_CONFIG, MAX_PROJECTILES, 0, 24, 0) < 0) {
-        puts("xreg_vga_mode failed");
         return;
     }
 
@@ -105,8 +100,6 @@ void sprite_mode5_init_projectiles(void) {
         RIA.rw0 = projectiles_palette[i] & 0xFF;
         RIA.rw0 = projectiles_palette[i] >> 8;
     }
-
-    puts("Mode5 projectile sprites ready");
 }
 
 void sprite_mode5_init_enemies(void) {
@@ -123,7 +116,6 @@ void sprite_mode5_init_enemies(void) {
     // Mode 5 args: MODE, OPTIONS, CONFIG, LENGTH, PLANE, BEGIN, END
     // OPTIONS 0x0A = 16x16 sprites, 4bpp
     if (xreg_vga_mode(5, 0x0A, ENEMY_CONFIG, MAX_ENEMIES, 1, 24, 0) < 0) {
-        puts("xreg_vga_mode failed");
         return;
     }
 
@@ -137,8 +129,6 @@ void sprite_mode5_init_enemies(void) {
     boss_palette_active = false;
     boss_weakspot_flash_tick = 0;
     boss_weakspot_current_color = enemy_palette[BOSS_WEAKSPOT_PALETTE_INDEX];
-
-    puts("Mode5 enemy sprites ready");
 }
 
 void sprite_mode5_set_enemy(uint8_t slot, int16_t x, int16_t y, uint8_t type)
