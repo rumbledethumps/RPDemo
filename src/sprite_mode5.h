@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+// Remove this when LLVM-MOS-SDK is updated for MODE-5.
 typedef struct {
     int16_t x_pos_px;
     int16_t y_pos_px;
