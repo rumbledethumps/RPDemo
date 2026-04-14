@@ -31,5 +31,6 @@ void enemy_hide_bonus_icons(void);
 void enemy_start_game_over_animation(void);
 void enemy_stop_game_over_animation(void);
 bool enemy_is_game_over_animation_complete(void);
+void enemy_spawn_for_boss(uint8_t enemy_type, uint8_t wave_slot);
 
 #endif // ENEMY_H

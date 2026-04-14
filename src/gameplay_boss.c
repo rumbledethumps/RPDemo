@@ -36,6 +36,10 @@
 #define BOSS_PROJECTILE_VY_Q8 (3 << 8)
 #define BOSS_DAMAGE_PER_HIT 4
 #define BOSS_HIT_FLASH_FRAMES 12
+#define BOSS_WAVE_INITIAL_DELAY_FRAMES 120
+#define BOSS_WAVE_INTERVAL_FRAMES 360
+#define BOSS_WAVE_SPAWN_COUNT (ENEMY_WAVE_SIZE)
+#define BOSS_WAVE_INTER_SPAWN_FRAMES 12
 
 static bool boss_active = false;
 static int16_t boss_x = BOSS_START_X;
@@ -51,6 +55,11 @@ static uint8_t boss_hit_flash_timer = 0;
 static uint8_t boss_pivot_index = 0;
 static bool boss_entering = true;
 static bool boss_retreating = false;
+static uint16_t boss_wave_timer = 0;
+static uint8_t boss_wave_spawned = 0;
+static uint8_t boss_wave_type = 0;
+static uint8_t boss_wave_inter_spawn_timer = 0;
+static bool boss_wave_active = false;
 
 static const int16_t boss_pivot_x[BOSS_PIVOT_COUNT] = {
     BOSS_PIVOT_LEFT_X,
@@ -105,6 +114,11 @@ void gameplay_boss_begin(gameplay_runtime_t *state)
     boss_pivot_index = 0;
     boss_entering = true;
     boss_retreating = false;
+    boss_wave_timer = BOSS_WAVE_INITIAL_DELAY_FRAMES;
+    boss_wave_spawned = 0;
+    boss_wave_type = 0;
+    boss_wave_inter_spawn_timer = 0;
+    boss_wave_active = false;
     state->level_banner_visible = false;
     state->hud_health_last = player_controller_get_health();
     music_set_track(BOSS_STAGE_MUSIC_TRACK);
@@ -172,6 +186,7 @@ void gameplay_boss_update(gameplay_runtime_t *state)
 
     player_controller_update();
     projectile_update();
+    enemy_update();
 
     player_controller_get_position(&player_x, &player_y);
     hitbox_x = (int16_t)(player_x + PLAYER_HITBOX_OFFSET);
@@ -354,6 +369,36 @@ void gameplay_boss_update(gameplay_runtime_t *state)
         return;
     }
 
+    if (!boss_entering && !boss_retreating) {
+        if (!boss_wave_active) {
+            if (boss_wave_timer > 0) {
+                boss_wave_timer--;
+            } else {
+                boss_wave_type = (state->current_level > 0) ? (uint8_t)(state->current_level - 1u) : 0u;
+                if (boss_wave_type >= ENEMY_TYPE_COUNT) {
+                    boss_wave_type = (uint8_t)(ENEMY_TYPE_COUNT - 1u);
+                }
+                boss_wave_spawned = 0;
+                boss_wave_inter_spawn_timer = 0;
+                boss_wave_active = true;
+            }
+        } else {
+            if (boss_wave_inter_spawn_timer > 0) {
+                boss_wave_inter_spawn_timer--;
+            } else {
+                enemy_spawn_for_boss(boss_wave_type, boss_wave_spawned);
+                boss_wave_spawned++;
+
+                if (boss_wave_spawned >= BOSS_WAVE_SPAWN_COUNT) {
+                    boss_wave_active = false;
+                    boss_wave_timer = BOSS_WAVE_INTERVAL_FRAMES;
+                } else {
+                    boss_wave_inter_spawn_timer = BOSS_WAVE_INTER_SPAWN_FRAMES;
+                }
+            }
+        }
+    }
+
     sprite_mode5_show_boss(boss_x, boss_y, boss_frame_set);
 }
 
@@ -373,6 +418,11 @@ void gameplay_boss_reset(void)
     boss_pivot_index = 0;
     boss_entering = true;
     boss_retreating = false;
+    boss_wave_timer = BOSS_WAVE_INITIAL_DELAY_FRAMES;
+    boss_wave_spawned = 0;
+    boss_wave_type = 0;
+    boss_wave_inter_spawn_timer = 0;
+    boss_wave_active = false;
     sprite_mode5_set_boss_palette_active(false);
     tile_mode2_set_boss_hud_visible(false);
     sprite_mode5_hide_boss();

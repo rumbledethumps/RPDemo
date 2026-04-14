@@ -1814,3 +1814,11 @@ bool enemy_is_game_over_animation_complete(void)
 {
     return game_over_animation_complete;
 }
+
+void enemy_spawn_for_boss(uint8_t enemy_type, uint8_t wave_slot)
+{
+    uint8_t free_slot = enemy_find_free_slot();
+    if (free_slot < MAX_ENEMIES) {
+        spawn_enemy(free_slot, enemy_type, wave_slot);
+    }
+}
