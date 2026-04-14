@@ -1,5 +1,4 @@
 #include <rp6502.h>
-#include <stdio.h>
 #include <stdbool.h>
 #include "constants.h"
 #include "sprite_mode5.h"
@@ -18,7 +17,6 @@ static bool init_graphics(void)
     int rc;
     rc = xreg_vga_canvas(1);
     if (rc < 0) {
-        puts("Error: xreg_vga_canvas(1) failed");
         return false;
     }
 
@@ -44,7 +42,6 @@ int main(void)
 
     // Initialise graphics
     if (!init_graphics()) {
-        puts("Fatal: graphics initialization failed");
         return 1;
     }
     music_init();

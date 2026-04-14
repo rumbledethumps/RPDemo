@@ -47,3 +47,15 @@ target_sources(RPDemo PRIVATE
     src/opl.c
     src/vgm.c
 )
+
+# Additional size-focused flags on top of MinSizeRel.
+target_compile_options(RPDemo PRIVATE
+    -ffunction-sections
+    -fdata-sections
+    -flto
+)
+
+target_link_options(RPDemo PRIVATE
+    -Wl,--gc-sections
+    -flto
+)
