@@ -50,6 +50,7 @@ static uint32_t boss_fight_timer = 0;
 static uint8_t boss_hit_flash_timer = 0;
 static uint8_t boss_pivot_index = 0;
 static bool boss_entering = true;
+static bool boss_retreating = false;
 
 static const int16_t boss_pivot_x[BOSS_PIVOT_COUNT] = {
     BOSS_PIVOT_LEFT_X,
@@ -103,6 +104,7 @@ void gameplay_boss_begin(gameplay_runtime_t *state)
     boss_hit_flash_timer = 0;
     boss_pivot_index = 0;
     boss_entering = true;
+    boss_retreating = false;
     state->level_banner_visible = false;
     state->hud_health_last = player_controller_get_health();
     music_set_track(BOSS_STAGE_MUSIC_TRACK);
@@ -148,6 +150,21 @@ void gameplay_boss_update(gameplay_runtime_t *state)
     }
 
     if (!boss_active) {
+        return;
+    }
+
+    if (boss_retreating) {
+        boss_y = (int16_t)(boss_y - BOSS_ENTRY_SPEED_PX);
+        if (boss_y <= (int16_t)(-(BOSS_GRID_ROWS * ENEMY_SPRITE_SIZE_PX))) {
+            gameplay_boss_reset();
+            projectile_init();
+            enemy_clear_all();
+            player_controller_reset_damage_state();
+            tile_mode2_set_level_complete_banner(true);
+            state->player_script = PLAYER_SCRIPT_TO_BONUS;
+            return;
+        }
+        sprite_mode5_show_boss(boss_x, boss_y, boss_frame_set);
         return;
     }
 
@@ -321,14 +338,18 @@ void gameplay_boss_update(gameplay_runtime_t *state)
         sprite_mode5_set_boss_weakspot_flash(false);
     }
 
-    if (boss_health == 0 || boss_fight_timer >= BOSS_FIGHT_TIMEOUT_FRAMES) {
-        bool boss_defeated = (boss_health == 0);
-        state->level_banner_visible = boss_defeated;
+    if (boss_health == 0) {
+        state->level_banner_visible = true;
+        boss_retreating = true;
+        return;
+    }
+
+    if (boss_fight_timer >= BOSS_FIGHT_TIMEOUT_FRAMES) {
         gameplay_boss_reset();
         projectile_init();
         enemy_clear_all();
         player_controller_reset_damage_state();
-        tile_mode2_set_level_complete_banner(boss_defeated);
+        tile_mode2_set_level_complete_banner(false);
         state->player_script = PLAYER_SCRIPT_TO_BONUS;
         return;
     }
@@ -351,6 +372,7 @@ void gameplay_boss_reset(void)
     boss_hit_flash_timer = 0;
     boss_pivot_index = 0;
     boss_entering = true;
+    boss_retreating = false;
     sprite_mode5_set_boss_palette_active(false);
     tile_mode2_set_boss_hud_visible(false);
     sprite_mode5_hide_boss();
