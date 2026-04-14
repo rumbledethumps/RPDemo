@@ -74,7 +74,7 @@ game_transition_t game_state_enter_boss(void)
 
 game_transition_t game_state_enter_level_bonus(void)
 {
-    if (g_state != GAME_STATE_PLAYING) {
+    if (g_state != GAME_STATE_PLAYING && g_state != GAME_STATE_BOSS) {
         return GAME_TRANSITION_NONE;
     }
 

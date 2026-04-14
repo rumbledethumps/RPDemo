@@ -2,8 +2,13 @@
 #include <stdbool.h>
 
 #include "constants.h"
+#include "enemy.h"
+#include "game_state.h"
+#include "level_bonus.h"
 #include "music.h"
+#include "player_controller.h"
 #include "projectile.h"
+#include "score.h"
 #include "sprite_mode5.h"
 #include "tile_mode2.h"
 #include "gameplay_boss.h"
@@ -16,6 +21,7 @@
 #define BOSS_ATTACK_FIRE_INTERVAL_FRAMES 18
 #define BOSS_PROJECTILE_VX_Q8 0
 #define BOSS_PROJECTILE_VY_Q8 (3 << 8)
+#define BOSS_DAMAGE_PER_HIT 4
 
 static bool boss_active = false;
 static int16_t boss_x = BOSS_START_X;
@@ -25,6 +31,8 @@ static uint8_t boss_anim_tick = 0;
 static uint8_t boss_frame_set = BOSS_FRAME_SET_A_BASE;
 static uint16_t boss_attack_cycle_timer = 0;
 static uint8_t boss_attack_fire_timer = 0;
+static uint8_t boss_health = BOSS_MAX_HEALTH;
+static uint32_t boss_fight_timer = 0;
 
 static void boss_fire_dual_projectiles(void)
 {
@@ -41,7 +49,6 @@ static void boss_fire_dual_projectiles(void)
 
 void gameplay_boss_begin(gameplay_runtime_t *state)
 {
-    (void)state;
     boss_active = true;
     boss_x = BOSS_START_X;
     boss_y = BOSS_START_Y;
@@ -50,20 +57,78 @@ void gameplay_boss_begin(gameplay_runtime_t *state)
     boss_frame_set = BOSS_FRAME_SET_A_BASE;
     boss_attack_cycle_timer = 0;
     boss_attack_fire_timer = 0;
+    boss_health = BOSS_MAX_HEALTH;
+    boss_fight_timer = 0;
+    state->hud_health_last = player_controller_get_health();
     music_set_track(BOSS_STAGE_MUSIC_TRACK);
     tile_mode2_set_boss_hud_visible(true);
-    tile_mode2_set_boss_health(BOSS_MAX_HEALTH);
+    tile_mode2_set_boss_health(boss_health);
     sprite_mode5_show_boss(boss_x, boss_y, boss_frame_set);
 }
 
 void gameplay_boss_update(gameplay_runtime_t *state)
 {
-    (void)state;
+    int16_t player_x;
+    int16_t player_y;
+    int16_t hitbox_x;
+    int16_t hitbox_y;
+    uint8_t player_health;
+    bool took_damage = false;
+    int16_t weakspot_x;
+    int16_t weakspot_y;
+    int16_t weakspot_w;
+    int16_t weakspot_h;
+
     if (!boss_active) {
         return;
     }
 
+    boss_fight_timer++;
+
+    player_controller_update();
     projectile_update();
+
+    player_controller_get_position(&player_x, &player_y);
+    hitbox_x = (int16_t)(player_x + PLAYER_HITBOX_OFFSET);
+    hitbox_y = (int16_t)(player_y + PLAYER_HITBOX_OFFSET);
+
+    if (player_controller_can_take_damage()) {
+        if (projectile_hit_test_player(hitbox_x, hitbox_y, PLAYER_HITBOX_SIZE, PLAYER_HITBOX_SIZE)) {
+            player_controller_apply_damage(PLAYER_BULLET_DAMAGE);
+            took_damage = true;
+        }
+    }
+
+    if (took_damage) {
+        score_reset_multiplier();
+    }
+
+    player_health = player_controller_get_health();
+    if (player_health != state->hud_health_last) {
+        state->hud_health_last = player_health;
+        tile_mode2_set_health(player_health);
+    }
+    tile_mode2_update_health_fx(
+        player_controller_is_damage_flash_active(),
+        player_controller_is_low_health()
+    );
+
+    if (player_controller_is_destroyed()) {
+        if (game_state_enter_game_over() == GAME_TRANSITION_ENTER_GAME_OVER) {
+            gameplay_boss_reset();
+            projectile_init();
+            enemy_init();
+            enemy_hide_bonus_icons();
+            music_stop();
+            state->game_over_timer = GAME_OVER_TIMEOUT_FRAMES;
+            state->game_over_letters_started = false;
+            state->game_over_scroll_started = false;
+            state->game_over_scroll_delay_timer = 0;
+            level_bonus_reset();
+            gameplay_clear_bonus_entry_state(state);
+        }
+        return;
+    }
 
     boss_x = (int16_t)(boss_x + boss_vx);
     if (boss_x <= (BOSS_START_X - BOSS_SWAY_RANGE_PX)) {
@@ -99,6 +164,27 @@ void gameplay_boss_update(gameplay_runtime_t *state)
         }
     }
 
+    weakspot_x = (int16_t)(boss_x + BOSS_WEAKSPOT_X_MIN);
+    weakspot_y = (int16_t)(boss_y + BOSS_WEAKSPOT_Y_MIN);
+    weakspot_w = (int16_t)(BOSS_WEAKSPOT_X_MAX - BOSS_WEAKSPOT_X_MIN + 1);
+    weakspot_h = (int16_t)(BOSS_WEAKSPOT_Y_MAX - BOSS_WEAKSPOT_Y_MIN + 1);
+    if (boss_health > 0 && projectile_hit_test_enemy(weakspot_x, weakspot_y, weakspot_w, weakspot_h)) {
+        if (boss_health > BOSS_DAMAGE_PER_HIT) {
+            boss_health = (uint8_t)(boss_health - BOSS_DAMAGE_PER_HIT);
+        } else {
+            boss_health = 0;
+        }
+        tile_mode2_set_boss_health(boss_health);
+    }
+
+    if (boss_health == 0 || boss_fight_timer >= BOSS_FIGHT_TIMEOUT_FRAMES) {
+        if (game_state_enter_level_bonus() == GAME_TRANSITION_ENTER_LEVEL_BONUS) {
+            gameplay_boss_reset();
+            level_bonus_begin(state->current_level);
+        }
+        return;
+    }
+
     sprite_mode5_show_boss(boss_x, boss_y, boss_frame_set);
 }
 
@@ -112,6 +198,8 @@ void gameplay_boss_reset(void)
     boss_frame_set = BOSS_FRAME_SET_A_BASE;
     boss_attack_cycle_timer = 0;
     boss_attack_fire_timer = 0;
+    boss_health = BOSS_MAX_HEALTH;
+    boss_fight_timer = 0;
     tile_mode2_set_boss_hud_visible(false);
     sprite_mode5_hide_boss();
 }
