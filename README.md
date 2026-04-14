@@ -5,6 +5,7 @@
 - [Getting Started](#getting-started)
 - [Setting up Graphics](#setting-up-graphics)
 - [Adding a Sprite](#adding-a-sprite)
+- [Converting PNG Assets](#converting-png-assets)
 - [Input System](#input-system)
 - [Tilemaps and Backgrounds](#tilemaps-and-backgrounds)
 - [Music](#music)
@@ -304,6 +305,45 @@ int main(void)
 At this point, if you build and run the code, you should see your player sprite displayed in the center of the screen!  Congratulations, you have successfully loaded a sprite into XRAM and drawn it to the screen using Mode 5!  In the next section, we will start adding some interactivity and movement to our sprite.
 
 ![First Milestone](Screenshots/Screenshot_001.png)
+
+## Converting PNG Assets
+
+Use `tools/convert_sprite.py` to convert source PNG files into binary assets for RP6502.
+
+Basic usage:
+
+```bash
+python3 ./tools/convert_sprite.py <input_file> [--bpp 1|2|4|8|16] [--mode tile|bitmap] [--out-dir images] [--extract-palette]
+```
+
+Key options:
+
+- `--mode tile` (default): treats the image as a horizontal strip of square frames where `tile_size = image_height` and `image_width` must be a multiple of `image_height`.
+- `--mode bitmap`: exports full scanline bitmap data (no frame splitting).
+- `--bpp`: output format. If omitted, the script auto-detects from image mode/color usage.
+- `--extract-palette`: for indexed formats (1/2/4/8 bpp), also writes:
+    - `<name>_<bpp>bpp_palette.bin`
+    - `<name>_<bpp>bpp_palette.h`
+
+Example commands used in this project:
+
+```bash
+# Player sprite sheet (16x16 frames in a horizontal strip)
+python3 ./tools/convert_sprite.py Sprites/Player.png --mode tile --bpp 4 --out-dir images --extract-palette
+
+# Enemy sprite sheet
+python3 ./tools/convert_sprite.py Sprites/Enemies.png --mode tile --bpp 4 --out-dir images --extract-palette
+
+# Projectile/asteroid sheet
+python3 ./tools/convert_sprite.py Sprites/Projectiles.png --mode tile --bpp 4 --out-dir images --extract-palette
+```
+
+Output naming convention:
+
+- Main binary: `<name>_<bpp>bpp.bin`
+- Palette binary/header (if requested): `<name>_<bpp>bpp_palette.bin` and `<name>_<bpp>bpp_palette.h`
+
+For this repo, generated binaries are copied/renamed into the `images/` asset filenames referenced by `rp6502_asset(...)` entries in `CMakeLists.txt`.
 
 ## Input System
 
