@@ -41,6 +41,8 @@ Destroying asteroids can reveal power-up capsules. Pickups follow a fixed repeat
 
 Your ship has 48 HP. The health bar at the top right turns red when HP drops below 12. You have a brief invincibility window after each hit. Reaching 0 HP triggers a game-over.
 
+You get an extra life every 100 000 points. You them wisely. 
+
 ---
 
 ## Table of Contents
