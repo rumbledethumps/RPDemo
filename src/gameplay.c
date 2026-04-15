@@ -21,6 +21,8 @@
 #define PLAYER_START_Y (((SCREEN_HEIGHT - PLAYER_SPRITE_SIZE_PX) * 2) / 3)
 #define BONUS_ENTRY_HOLD_FRAMES 60
 #define PLAYER_START_EXTRA_LIVES 2
+#define PLAYER_MAX_EXTRA_LIVES 3
+#define EXTRA_LIFE_SCORE_STEP 100000u
 
 static gameplay_runtime_t runtime_state = {
     .game_over_timer = 0,
@@ -38,6 +40,8 @@ static gameplay_runtime_t runtime_state = {
     .bonus_entry_hold_timer = 0,
     .player_script = PLAYER_SCRIPT_NONE,
 };
+
+static uint32_t next_extra_life_score = EXTRA_LIFE_SCORE_STEP;
 
 static const char *track_for_level(uint8_t level)
 {
@@ -58,6 +62,20 @@ static const char *track_for_level(uint8_t level)
             return "ROM:RESOURCE.010.vgm";
         default:
             return "ROM:RESOURCE.009.vgm";
+    }
+}
+
+static void gameplay_update_extra_life_awards(gameplay_runtime_t *state)
+{
+    uint32_t score = score_get();
+
+    while (score >= next_extra_life_score) {
+        if (state->extra_lives < PLAYER_MAX_EXTRA_LIVES) {
+            state->extra_lives++;
+            tile_mode2_set_lives(state->extra_lives);
+        }
+
+        next_extra_life_score += EXTRA_LIFE_SCORE_STEP;
     }
 }
 
@@ -172,6 +190,7 @@ static void start_new_run(void)
 
     state->current_level = 1;
     state->extra_lives = PLAYER_START_EXTRA_LIVES;
+    next_extra_life_score = EXTRA_LIFE_SCORE_STEP;
     gameplay_boss_reset();
     enemy_stop_game_over_animation();
     enemy_hide_bonus_icons();
@@ -335,6 +354,7 @@ static void handle_start_transition(game_transition_t transition)
 void gameplay_init(void)
 {
     game_state_init();
+    next_extra_life_score = EXTRA_LIFE_SCORE_STEP;
     tile_mode2_set_health(player_controller_get_health());
     tile_mode2_set_lives(0);
     tile_mode2_set_speed_pickups(0);
@@ -375,4 +395,6 @@ void gameplay_frame(bool start_pressed)
     } else if (state == GAME_STATE_GAME_OVER) {
         gameplay_update_game_over_state(&runtime_state);
     }
+
+    gameplay_update_extra_life_awards(&runtime_state);
 }

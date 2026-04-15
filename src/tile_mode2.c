@@ -61,7 +61,8 @@ static uint8_t health_flash_tick = 0;
 #define LIVES_SLOT_Y 1
 #define LIVES_SLOT_0_X 26
 #define LIVES_SLOT_1_X 28
-#define LIVES_MAX_DISPLAY 2
+#define LIVES_SLOT_2_X 30
+#define LIVES_MAX_DISPLAY 3
 #define SPEED_PICKUP_TILE_INDEX 254
 #define SPEED_PICKUP_X_START 4
 #define SPEED_PICKUP_Y 1
@@ -794,6 +795,14 @@ void tile_mode2_set_lives(uint8_t extra_lives)
         LIVES_SLOT_1_X,
         LIVES_SLOT_Y,
         (clamped_lives >= 2u) ? LIVES_ICON_TILE_INDEX : 0
+    );
+
+    tile_mode2_write_tile(
+        STARFIELD_HUD_DATA,
+        STARFIELD_HUD_WIDTH,
+        LIVES_SLOT_2_X,
+        LIVES_SLOT_Y,
+        (clamped_lives >= 3u) ? LIVES_ICON_TILE_INDEX : 0
     );
 }
 
