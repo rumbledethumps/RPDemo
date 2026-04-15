@@ -154,6 +154,7 @@ void gameplay_reset_to_title_scene(gameplay_runtime_t *state)
     state->game_over_scroll_delay_timer = 0;
     level_bonus_reset();
     gameplay_clear_bonus_entry_state(state);
+    projectile_reset_pickup_sequence();
 }
 
 static void start_new_run(void)
@@ -189,6 +190,7 @@ static void start_new_run(void)
     state->game_over_scroll_delay_timer = 0;
     level_bonus_reset();
     gameplay_clear_bonus_entry_state(state);
+    projectile_reset_pickup_sequence();
 }
 
 static void start_next_level(void)
@@ -222,6 +224,37 @@ static void start_next_level(void)
     level_bonus_reset();
     gameplay_clear_bonus_entry_state(state);
     state->player_script = PLAYER_SCRIPT_FROM_BONUS;
+}
+
+static void restart_current_level(void)
+{
+    gameplay_runtime_t *state = &runtime_state;
+
+    gameplay_boss_reset();
+    enemy_hide_bonus_icons();
+    enemy_stop_game_over_animation();
+    projectile_init();
+    enemy_start_level(state->current_level);
+    score_reset_level_kills();
+    tile_mode2_set_score(score_get());
+    tile_mode2_set_multiplier(score_get_multiplier());
+    tile_mode2_set_paused_banner(false);
+    tile_mode2_set_level_complete_banner(false);
+    tile_mode2_set_level_failed_banner(false);
+    tile_mode2_set_push_start_prompt(false);
+    tile_mode2_set_bonus_continue_prompt(false);
+    tile_mode2_set_health(player_controller_get_health());
+    state->hud_health_last = player_controller_get_health();
+    tile_mode2_update_health_fx(false, player_controller_is_low_health());
+    sprite_mode5_show_player();
+    tile_mode2_clear_level_bonus();
+    tile_mode2_start_gameplay_transition();
+    tile_mode2_set_level_banner(state->current_level, true);
+    state->level_banner_visible = true;
+    music_set_track(track_for_level(state->current_level));
+    state->game_over_is_victory = false;
+    level_bonus_reset();
+    gameplay_clear_bonus_entry_state(state);
 }
 
 static void start_victory_ending(void)
@@ -266,6 +299,8 @@ static void handle_start_transition(game_transition_t transition)
         } else {
             game_state_enter_level_bonus();
         }
+    } else if (transition == GAME_TRANSITION_RETRY_LEVEL) {
+        restart_current_level();
     } else if (transition == GAME_TRANSITION_RETURN_TO_TITLE) {
         game_state_init();
         gameplay_reset_to_title_scene(&runtime_state);
@@ -304,6 +339,9 @@ void gameplay_frame(bool start_pressed)
         gameplay_boss_update(&runtime_state);
     } else if (state == GAME_STATE_LEVEL_BONUS) {
         gameplay_update_bonus_state(&runtime_state);
+    } else if (state == GAME_STATE_LEVEL_FAILED) {
+        sprite_mode5_set_frame(0);
+        sprite_mode5_update_engine(false);
     } else if (state == GAME_STATE_GAME_OVER) {
         gameplay_update_game_over_state(&runtime_state);
     }

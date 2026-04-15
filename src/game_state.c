@@ -52,6 +52,11 @@ game_transition_t game_state_handle_start_button(bool start_pressed)
         return GAME_TRANSITION_START_NEXT_LEVEL;
     }
 
+    if (g_state == GAME_STATE_LEVEL_FAILED) {
+        g_state = GAME_STATE_PLAYING;
+        return GAME_TRANSITION_RETRY_LEVEL;
+    }
+
     if (g_state == GAME_STATE_GAME_OVER) {
         g_state = GAME_STATE_PLAYING;
         return GAME_TRANSITION_START_GAME;
@@ -80,6 +85,17 @@ game_transition_t game_state_enter_level_bonus(void)
     g_state = GAME_STATE_LEVEL_BONUS;
     g_start_armed = false;
     return GAME_TRANSITION_ENTER_LEVEL_BONUS;
+}
+
+game_transition_t game_state_enter_level_failed(void)
+{
+    if (g_state != GAME_STATE_BOSS) {
+        return GAME_TRANSITION_NONE;
+    }
+
+    g_state = GAME_STATE_LEVEL_FAILED;
+    g_start_armed = false;
+    return GAME_TRANSITION_ENTER_LEVEL_FAILED;
 }
 
 game_transition_t game_state_enter_game_over(void)

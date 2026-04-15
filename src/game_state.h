@@ -9,6 +9,7 @@ typedef enum {
     GAME_STATE_PAUSED,
     GAME_STATE_BOSS,
     GAME_STATE_LEVEL_BONUS,
+    GAME_STATE_LEVEL_FAILED,
     GAME_STATE_GAME_OVER,
 } game_state_t;
 
@@ -19,7 +20,9 @@ typedef enum {
     GAME_TRANSITION_UNPAUSE_GAME,
     GAME_TRANSITION_ENTER_BOSS,
     GAME_TRANSITION_ENTER_LEVEL_BONUS,
+    GAME_TRANSITION_ENTER_LEVEL_FAILED,
     GAME_TRANSITION_START_NEXT_LEVEL,
+    GAME_TRANSITION_RETRY_LEVEL,
     GAME_TRANSITION_ENTER_GAME_OVER,
     GAME_TRANSITION_RETURN_TO_TITLE,
 } game_transition_t;
@@ -29,6 +32,7 @@ game_state_t game_state_get(void);
 game_transition_t game_state_handle_start_button(bool start_pressed);
 game_transition_t game_state_enter_boss(void);
 game_transition_t game_state_enter_level_bonus(void);
+game_transition_t game_state_enter_level_failed(void);
 game_transition_t game_state_enter_game_over(void);
 
 #endif // GAME_STATE_H

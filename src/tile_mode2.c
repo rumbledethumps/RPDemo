@@ -495,17 +495,6 @@ void tile_mode2_set_level_banner(uint8_t level, bool visible)
 
 void tile_mode2_set_end_banner(bool victory)
 {
-    static const uint8_t game_over_tiles[9] = {
-        233, // G
-        227, // A
-        239, // M
-        231, // E
-        0,   // space
-        241, // O
-        248, // V
-        231, // E
-        244, // R
-    };
     static const uint8_t you_win_tiles[7] = {
         251, // Y
         241, // O
@@ -516,15 +505,19 @@ void tile_mode2_set_end_banner(bool victory)
         240, // N
     };
 
-    uint8_t x = victory ? 16u : 15u;
+    uint8_t x = 16u;
     uint8_t y = 14u;
-    uint8_t len = victory ? 7u : 9u;
+    uint8_t len = 7u;
 
     tile_mode2_clear_hud_text(15u, y, 10u);
+    if (!victory) {
+        return;
+    }
+
     tile_mode2_write_hud_palette_entry(2, HUD_TEXT_YELLOW);
 
     for (uint8_t i = 0; i < len; ++i) {
-        uint8_t tile_index = victory ? you_win_tiles[i] : game_over_tiles[i];
+        uint8_t tile_index = you_win_tiles[i];
         tile_mode2_write_tile(STARFIELD_HUD_DATA, STARFIELD_HUD_WIDTH, (uint8_t)(x + i), y, tile_index);
     }
 }
@@ -565,6 +558,36 @@ void tile_mode2_set_level_complete_banner(bool visible)
     }
 }
 
+void tile_mode2_set_level_failed_banner(bool visible)
+{
+    static const uint8_t level_failed_tiles[12] = {
+        238, // L
+        231, // E
+        248, // V
+        231, // E
+        238, // L
+        0,   // space
+        232, // F
+        227, // A
+        235, // I
+        238, // L
+        231, // E
+        230, // D
+    };
+    const uint8_t x = 14u;
+    const uint8_t y = 14u;
+
+    if (!visible) {
+        tile_mode2_clear_hud_text(x, y, 12u);
+        return;
+    }
+
+    tile_mode2_write_hud_palette_entry(2, HUD_TEXT_YELLOW);
+    for (uint8_t i = 0; i < 12u; ++i) {
+        tile_mode2_write_tile(STARFIELD_HUD_DATA, STARFIELD_HUD_WIDTH, (uint8_t)(x + i), y, level_failed_tiles[i]);
+    }
+}
+
 void tile_mode2_set_bonus_continue_prompt(bool visible)
 {
     static const uint8_t press_start_tiles[BONUS_CONTINUE_TEXT_LEN] = {
@@ -595,6 +618,34 @@ void tile_mode2_set_bonus_continue_prompt(bool visible)
             BONUS_CONTINUE_TEXT_Y,
             press_start_tiles[i]
         );
+    }
+}
+
+void tile_mode2_set_push_start_prompt(bool visible)
+{
+    static const uint8_t push_start_tiles[10] = {
+        242, // P
+        247, // U
+        245, // S
+        234, // H
+        0,   // space
+        245, // S
+        246, // T
+        227, // A
+        244, // R
+        246, // T
+    };
+    const uint8_t x = 15u;
+    const uint8_t y = BONUS_CONTINUE_TEXT_Y;
+
+    if (!visible) {
+        tile_mode2_clear_hud_text(x, y, 10u);
+        return;
+    }
+
+    tile_mode2_write_hud_palette_entry(2, HUD_TEXT_YELLOW);
+    for (uint8_t i = 0; i < 10u; ++i) {
+        tile_mode2_write_tile(STARFIELD_HUD_DATA, STARFIELD_HUD_WIDTH, (uint8_t)(x + i), y, push_start_tiles[i]);
     }
 }
 

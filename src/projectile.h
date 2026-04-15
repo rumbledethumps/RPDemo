@@ -19,6 +19,7 @@
 #define FIRST_ENEMY_PROJECTILE_SLOT MAX_PLAYER_PROJECTILES
 
 void projectile_init(void);
+void projectile_reset_pickup_sequence(void);
 void projectile_fire_player(int16_t x, int16_t y);
 bool projectile_fire_enemy(int16_t x, int16_t y, int16_t vx_q8, int16_t vy_q8, uint8_t frame_index);
 bool projectile_spawn_explosion(int16_t x, int16_t y);

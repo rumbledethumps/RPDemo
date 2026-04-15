@@ -313,11 +313,15 @@ static bool projectile_is_offscreen_noncombat(uint8_t slot)
 void projectile_init(void)
 {
     pickup_rng = 0xA37Fu;
-    pickup_sequence_index = 0;
     for (uint8_t i = 0; i < MAX_PROJECTILES; i++) {
         projectile_deactivate(i);
     }
     // Hardware slots are already positioned off-screen by sprite_mode5_init_projectiles()
+}
+
+void projectile_reset_pickup_sequence(void)
+{
+    pickup_sequence_index = 0;
 }
 
 void projectile_spawn_asteroid_wave(uint8_t count)

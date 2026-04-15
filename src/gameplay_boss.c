@@ -125,6 +125,7 @@ static bool boss_wave_slide_active = false;
 static uint8_t boss_wave_slide_phase = BOSS_WAVE_SLIDE_PHASE_SINK_TO_BOTTOM;
 static int16_t boss_wave_slide_target_x = BOSS_START_X;
 static bool boss_defeat_sequence_active = false;
+static bool boss_timeout_departing = false;
 static uint16_t boss_defeat_timer = 0;
 static uint8_t boss_defeat_spawn_timer = 0;
 static uint16_t boss_defeat_rng = 0xC35Fu;
@@ -337,6 +338,7 @@ void gameplay_boss_begin(gameplay_runtime_t *state)
     boss_wave_slide_phase = BOSS_WAVE_SLIDE_PHASE_SINK_TO_BOTTOM;
     boss_wave_slide_target_x = BOSS_START_X;
     boss_defeat_sequence_active = false;
+    boss_timeout_departing = false;
     boss_defeat_timer = 0;
     boss_defeat_spawn_timer = 0;
     boss_defeat_rng = 0xC35Fu;
@@ -397,12 +399,21 @@ void gameplay_boss_update(gameplay_runtime_t *state)
     if (boss_retreating) {
         boss_y = (int16_t)(boss_y - BOSS_ENTRY_SPEED_PX);
         if (boss_y <= (int16_t)(-(BOSS_GRID_ROWS * ENEMY_SPRITE_SIZE_PX))) {
+            bool timed_out_departure = boss_timeout_departing;
             gameplay_boss_reset();
             projectile_init();
             enemy_clear_all();
             player_controller_reset_damage_state();
-            tile_mode2_set_level_complete_banner(true);
-            state->player_script = PLAYER_SCRIPT_TO_BONUS;
+            if (timed_out_departure) {
+                if (game_state_enter_level_failed() == GAME_TRANSITION_ENTER_LEVEL_FAILED) {
+                    tile_mode2_set_level_complete_banner(false);
+                    tile_mode2_set_level_failed_banner(true);
+                    tile_mode2_set_push_start_prompt(true);
+                }
+            } else {
+                tile_mode2_set_level_complete_banner(true);
+                state->player_script = PLAYER_SCRIPT_TO_BONUS;
+            }
             return;
         }
         sprite_mode5_show_boss(boss_x, boss_y, boss_frame_set);
@@ -674,6 +685,7 @@ void gameplay_boss_update(gameplay_runtime_t *state)
     if (boss_health == 0) {
         state->level_banner_visible = true;
         boss_defeat_sequence_active = true;
+        boss_timeout_departing = false;
         boss_defeat_timer = BOSS_DEFEAT_SEQUENCE_FRAMES;
         boss_defeat_spawn_timer = 0;
         boss_defeat_rng = (uint16_t)(0xC35Fu ^ (uint16_t)boss_x ^ ((uint16_t)boss_y << 1));
@@ -695,12 +707,21 @@ void gameplay_boss_update(gameplay_runtime_t *state)
     }
 
     if (boss_fight_timer >= BOSS_FIGHT_TIMEOUT_FRAMES) {
-        gameplay_boss_reset();
+        boss_retreating = true;
+        boss_timeout_departing = true;
+        boss_wave_active = false;
+        boss_wave_spawned = 0;
+        boss_wave_inter_spawn_timer = 0;
+        boss_attack_cycle_timer = 0;
+        boss_attack_fire_timer = 0;
+        boss_attack_volleys_fired = 0;
+        boss_wave_dive_active = false;
+        boss_wave_slide_active = false;
         projectile_init();
         enemy_clear_all();
         player_controller_reset_damage_state();
         tile_mode2_set_level_complete_banner(false);
-        state->player_script = PLAYER_SCRIPT_TO_BONUS;
+        sprite_mode5_set_boss_weakspot_flash(false);
         return;
     }
 
@@ -783,6 +804,7 @@ void gameplay_boss_reset(void)
     boss_wave_slide_phase = BOSS_WAVE_SLIDE_PHASE_SINK_TO_BOTTOM;
     boss_wave_slide_target_x = BOSS_START_X;
     boss_defeat_sequence_active = false;
+    boss_timeout_departing = false;
     boss_defeat_timer = 0;
     boss_defeat_spawn_timer = 0;
     boss_defeat_rng = 0xC35Fu;
