@@ -669,7 +669,7 @@ void gameplay_boss_update(gameplay_runtime_t *state)
         } else {
             boss_health = 0;
         }
-        score_add_points(BOSS_HIT_SCORE_POINTS);
+        score_add_points((uint32_t)BOSS_HIT_SCORE_POINTS * score_get_multiplier());
         boss_hit_flash_timer = BOSS_HIT_FLASH_FRAMES;
         tile_mode2_set_boss_health(boss_health);
     }
