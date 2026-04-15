@@ -49,6 +49,29 @@ static int16_t player_start_y(void)
     return (int16_t)(((SCREEN_HEIGHT - PLAYER_SPRITE_SIZE_PX) * 2) / 3);
 }
 
+static void player_controller_apply_death_penalty(void)
+{
+    if (player_speed_cap > PLAYER_DEFAULT_SPEED) {
+        if (player_speed_cap >= (PLAYER_DEFAULT_SPEED + 2)) {
+            player_speed_cap -= 2;
+        } else {
+            player_speed_cap = PLAYER_DEFAULT_SPEED;
+        }
+    }
+
+    if (player_speed > player_speed_cap) {
+        player_speed = player_speed_cap;
+    }
+
+    if (player_fire_rate < PLAYER_FIRE_RATE) {
+        uint8_t new_fire_rate = (uint8_t)(player_fire_rate + 2);
+        if (new_fire_rate > PLAYER_FIRE_RATE) {
+            new_fire_rate = PLAYER_FIRE_RATE;
+        }
+        player_fire_rate = new_fire_rate;
+    }
+}
+
 void player_controller_reset_for_new_run(void)
 {
     player_speed = PLAYER_DEFAULT_SPEED;
@@ -230,6 +253,7 @@ void player_controller_apply_damage(uint8_t amount)
     damage_flash_timer = PLAYER_HIT_FLASH_FRAMES;
 
     if (player_health == 0) {
+        player_controller_apply_death_penalty();
         player_destroyed = true;
         fire_cooldown = 0;
         death_anim_frame = PLAYER_DEATH_FRAME_START;

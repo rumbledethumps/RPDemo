@@ -47,6 +47,7 @@
 #define BOSS_VARIANT_SIX_NORMAL_FIRE_INTERVAL_FRAMES 12
 // Boss 7 (SEVEN): Continuous wave spawning
 #define BOSS_VARIANT_SEVEN_WAVE_INTERVAL_FRAMES 0
+#define BOSS_VARIANT_SEVEN_WAVE_INTER_SPAWN_FRAMES (BOSS_WAVE_INTER_SPAWN_FRAMES * 2)
 #define BOSS_WAVE_SPAWN_COUNT (ENEMY_WAVE_SIZE)
 #define BOSS_WAVE_INTER_SPAWN_FRAMES 12
 #define BOSS_WAVE_ASTEROID_COUNT 2
@@ -865,7 +866,11 @@ void gameplay_boss_update(gameplay_runtime_t *state)
                         boss_wave_timer = BOSS_WAVE_INTERVAL_FRAMES;
                     }
                 } else {
-                    boss_wave_inter_spawn_timer = BOSS_WAVE_INTER_SPAWN_FRAMES;
+                    if (boss_variant == BOSS_VARIANT_SEVEN) {
+                        boss_wave_inter_spawn_timer = BOSS_VARIANT_SEVEN_WAVE_INTER_SPAWN_FRAMES;
+                    } else {
+                        boss_wave_inter_spawn_timer = BOSS_WAVE_INTER_SPAWN_FRAMES;
+                    }
                 }
             }
         }
