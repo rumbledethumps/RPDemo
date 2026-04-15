@@ -142,6 +142,18 @@ So `0x02` means **8×8 tiles, 4bpp**. See the [VGA documentation](https://picoco
 
 ## Getting Started
 
+Tool prerequisites for this repo:
+
+- LLVM-MOS RP6502 toolchain in VS Code (`vscode-llvm-mos` template setup)
+- Python 3
+- Pillow for image conversion scripts
+
+Install Python dependency:
+
+```bash
+python3 -m pip install pillow
+```
+
 Get started by using the vscode-llvm-mos template from https://github.com/picocomputer/vscode-llvm-mos.  Find the "Use this template" button and follow the instructions to create a new repository.  
 
 Once you have your repository set up, we are going to update CMakeLists.txt to build the demo game.  Update the contents of CMakeLists.txt to have the name of the game you want to make.  In this example, we are going to make a game called RPStarHopper.  The CMakeLists.txt file should look something like this:
@@ -206,6 +218,22 @@ Asset naming convention in this project:
 - `*_4bpp.bin` = pixel data (tile/sprite frames)
 - `*_map.bin` = tile index map data
 - `*_palette.*` = palette helper output
+
+### XRAM placement summary
+
+These are the current XRAM load addresses from `rp6502_asset(...)` in `CMakeLists.txt`.
+
+| File | CMake load address | Notes |
+|---|---:|---|
+| `images/Player_4bpp.bin` | `0x10000` | Player sprite frames |
+| `images/StarFields_BG_map.bin` | `0x10300` | BG tile index map |
+| `images/StarFields_FG_map.bin` | `0x10C60` | FG tile index map |
+| `images/StarFields_HUD_map.bin` | `0x115C0` | HUD tile index map |
+| `images/StarFields_tiles_4bpp.bin` | `0x11A70` | Shared tile pixels |
+| `images/Projectiles_4bpp.bin` | `0x13A70` | Projectile/pickup/asteroid/explosion frames |
+| `images/Enemies_4bpp.bin` | `0x13C10` | Enemy + boss frames |
+
+Reminder: in C code you access these through 16-bit XRAM pointers (for example `PLAYER_DATA = 0x0000`) because the `0x10000` prefix is the ROM-packaging address space used by the loader.
 
 ## Setting up Graphics
 
@@ -465,6 +493,12 @@ At this point, if you build and run the code, you should see your player sprite 
 
 Use `tools/convert_sprite.py` to convert source PNG files into binary assets for RP6502.
 
+Prerequisite: `convert_sprite.py` uses Pillow (`PIL`). If needed:
+
+```bash
+python3 -m pip install pillow
+```
+
 Basic usage:
 
 ```bash
@@ -525,7 +559,7 @@ Using this repo's actual art assets, the numbers look like this:
 | Asset | Current size at 4bpp | Equivalent at 8bpp | Equivalent at 16bpp |
 |---|---:|---:|---:|
 | Player sprite sheet (`6` frames, `16x16`) | 768 bytes | 1536 bytes | 3072 bytes |
-| Tile set (`256` tiles, `8x8`) | 8192 bytes | 16384 bytes | 32768 bytes |
+| Tile set (`StarFields_tiles_4bpp.bin`, currently `253` tiles, `8x8`) | 8096 bytes | 16192 bytes | 32384 bytes |
 | Projectile sheet (`13` frames, `8x8`) | 416 bytes | 832 bytes | 1664 bytes |
 | Enemy sheet (`176` frames, `16x16`) | 22528 bytes | 45056 bytes | 90112 bytes |
 
@@ -539,8 +573,8 @@ That gives these total XRAM requirements for the current visual assets:
 | Format choice | Total asset memory |
 |---|---:|
 | Current 4bpp setup | 37904 bytes |
-| Same assets at 8bpp | 69808 bytes |
-| Same assets at 16bpp | 133616 bytes |
+| Same assets at 8bpp | 69616 bytes |
+| Same assets at 16bpp | 133232 bytes |
 
 Since XRAM is only 65536 bytes total, the current 4bpp setup fits, but the same art at 8bpp would already overflow XRAM before accounting for config structs, palettes, input buffers, or OPL registers. That is the strongest practical reason to stay with 4bpp unless you truly need more colors.
 
@@ -832,7 +866,7 @@ This code will not work until we set up the tilemaps and load the tile data into
 - ```images/StarFields_BG_map.bin``` - This contains the tile index for each 8x8 tile in the background layer (layer 0).  It is a 40x60 tilemap.  We can have up to 256 tiles, so we need 1 byte per tile, which means this tilemap requires 2400 bytes of memory (40 tiles * 60 tiles * 1 byte per tile = 2400 bytes).  Notice that the tilemap is larger than the screen size, this allows us to scroll the background to create a parallax effect.
 - ```images/StarFields_FG_map.bin``` - This will be our foreground layer (layer 1) and it is also a 40x60 tilemap with 1 byte per tile, so it also requires 2400 bytes of memory.
 - ```images/StarFields_HUD_map.bin``` - This will be our HUD layer (layer 2) and will be a 40x30 tilemap, since we don't need to scroll it.  
-- ```images/StarFields_tiles_4bpp.bin``` - This contains the pixel data for our tiles.  Each tile is 8x8 pixels and we are using a 4bpp format, which means each pixel takes up 4 bits, so we can fit two pixels in one byte.  Therefore, each tile requires 32 bytes of memory (8 * 8 * 4 bits / 8 bits per byte = 32 bytes).  In this project we use a 256-tile set, so our tileset requires 8192 bytes of memory (256 tiles * 32 bytes per tile = 8192 bytes).  
+- ```images/StarFields_tiles_4bpp.bin``` - This contains the pixel data for our tiles.  Each tile is 8x8 pixels and we are using a 4bpp format, which means each pixel takes up 4 bits, so we can fit two pixels in one byte.  Therefore, each tile requires 32 bytes of memory (8 * 8 * 4 bits / 8 bits per byte = 32 bytes).  The engine layout reserves space for up to 256 tiles (8192 bytes), while the current file contains 253 tiles (8096 bytes).  
 
 Note, we are going to share 1 set of tiles for all 3 layers, but you can have a different tileset for each layer if you want.  We will learn how to generate tile maps later on, for now we are just learning how to use them.  The tilemaps and tileset are loaded into XRAM as assets in our CMakeLists.txt file, just like we did with the sprite.  We will then set up the tilemaps in XRAM and point the VGA system to them.  Once that is done, we can update the scroll position of the tilemaps in our main loop to create a parallax scrolling effect.
 
@@ -931,7 +965,7 @@ Next we update ```constants.h``` to include the new assets and the XRAM layout f
 #define STARFIELD_HUD_HEIGHT    30                 // Height of starfield HUD in tiles
 
 #define STARFIELD_TILES_DATA   (STARFIELD_HUD_DATA + STARFIELD_HUD_SIZE) // Address for starfield tile bitmaps
-#define STARFIELD_TILES_SIZE    0x2000U            // 8192 bytes (256 tiles at 32 bytes each for 4bpp)
+#define STARFIELD_TILES_SIZE    0x2000U            // Reserved 8192 bytes (up to 256 tiles at 32 bytes each for 4bpp)
 
 
 #define SPRITE_DATA_END        (STARFIELD_TILES_DATA + STARFIELD_TILES_SIZE) // End of sprite data
