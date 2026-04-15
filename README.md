@@ -1035,6 +1035,9 @@ Recommended workflow:
 
 Practical notes:
 
+- In Furnace, go to **File -> Manage chips**, add **Yamaha YM3812 (OPL2)**, and remove any other chips that may be loaded.
+- For a quick instrument start, find `Apogee-IMF-90.wopl`. In Furnace, open the **Instruments** tab, choose **Open**, and load the `.wopl` bank for classic Apogee-style OPL2 patches.
+- Have fun and experiment with chip effects early, especially **arpeggio**, to get to playable chiptune ideas quickly.
 - Keep the source module file (`.fur`) in your project for future edits.
 - Export each track as `.vgm` for runtime playback.
 - If you receive `.vgz` files, unzip them first; the game player expects raw `.vgm`.
