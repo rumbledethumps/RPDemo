@@ -20,7 +20,7 @@ After clearing a level, a **bonus screen** tallies your kills per enemy type and
 
 ### Boss Fights
 
-Each level ends with a boss encounter. The boss health bar appears at the bottom of the screen (green when healthy, red when low). Shoot enemy ships that fly in during the boss phase to keep the wave count down — once enough are cleared the boss becomes vulnerable.
+Each level ends with a boss encounter.  Bosses have a vulerable that is bright yellow.  Shoot it to deal damage.  Some bosses will only be vunerable after certain conditions are met, which will be telegraphed visually.  For example, Boss Variant Four (Level 4) requires you to destroy all but one of the smaller enemies on screen before its vulnerable point will appear.
 
 You have **4 minutes** to defeat the boss. If time runs out, the boss retreats and the level is marked **LEVEL FAILED**. Press Start to retry the same level.
 
