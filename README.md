@@ -1947,6 +1947,8 @@ That means:
 
 That keeps the architecture clean while the attack patterns are being designed and tuned.
 
+![GamePlay](Screenshots/Screenshot_005.png)
+
 ### 8. Player Collisions, Health, and Game Over
 
 The current build now includes full player damage handling and a game-over flow.
