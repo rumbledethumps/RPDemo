@@ -72,3 +72,16 @@ target_link_options(RPStarHopper PRIVATE
     -Wl,--gc-sections
     -flto
 )
+
+# Gamepad mapper utility
+add_executable(GamepadMapper)
+
+rp6502_executable(GamepadMapper
+    DATA file
+    RESET file
+)
+
+target_sources(GamepadMapper PRIVATE
+    src/gamepad_mapper.c
+    src/input.c
+)

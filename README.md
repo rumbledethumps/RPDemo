@@ -685,6 +685,27 @@ This sets the XRAM addresses for the keyboard and gamepad inputs and enables the
 ```
 This initializes our input handling system and our player controller.  The input system will also look for `JOYSTICK_SH.DAT` and if it exists, it will load custom key mappings from that file.  This allows you to set up custom key mappings for any gamepad you want to use with your Picocomputer.
 
+### Mapping any gamepad with `GamepadMapper`
+
+This repo includes a small utility program (`src/gamepad_mapper.c`) that lets you map controls for any gamepad and save the result to `JOYSTICK_SH.DAT`.
+
+What it does:
+- Prompts you for each in-game action (`MOVE UP`, `MOVE DOWN`, `MOVE LEFT`, `MOVE RIGHT`, `BUTTON A/B/X/Y`, `BUTTON LT/RT`, `SELECT`, `START`).
+- Records the actual gamepad field/mask values for the button you press.
+- Writes the mapping file `JOYSTICK_SH.DAT` to storage.
+
+At game startup, `init_input_system()` in `input.c` automatically loads `JOYSTICK_SH.DAT` (if present), so your custom mapping is applied without any code changes.
+
+Recommended workflow:
+
+1. Build the `GamepadMapper` target.
+2. Run/upload `GamepadMapper` on the Picocomputer.
+3. Follow the on-screen prompts and press the requested control for each action.
+4. Confirm `JOYSTICK_SH.DAT` was saved.
+5. Run the main game; it will pick up that mapping automatically.
+
+If `JOYSTICK_SH.DAT` is missing or invalid, the game falls back to the default mappings in `reset_button_mappings()`.
+
 In our VSYNC loop we have added:
 
 ```c
