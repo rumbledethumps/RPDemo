@@ -4,3 +4,4 @@ __pycache__
 CMakeUserPresets.json
 .venv
 .DS_Store
+.vscode/c_cpp_properties.json
